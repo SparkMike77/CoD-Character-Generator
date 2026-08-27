@@ -27,35 +27,42 @@ function attributePointsSpent(character, attributeKeys) {
 }
 
 // Determines each row's Primary/Secondary/Tertiary tier from what's actually
-// been spent. A row's spent total of 0 is the untouched starting state, not
-// a tie. Two kinds of ambiguity both count as an unresolved conflict:
-//   - two rows tied on the exact same nonzero point total (can't both hold
-//     the same priority), and
-//   - two or more rows each having reached the Primary bar (>=5) even at
-//     different totals - only one row can actually be Primary, so e.g. 8
-//     and 6 both qualify and are just as unresolved as 5 and 5.
-// (There's no equivalent extra case for Secondary: a row only reaches that
-// tier at exactly 4, which the same-total check above already covers.)
+// been spent, and flags rows that violate one of the overspend validation
+// rules. A row's spent total of 0 is the untouched starting state, never a
+// violation on its own. A row is in error/conflict if:
+//   - it has more than 5 points spent (no row can ever exceed the Primary
+//     budget), or
+//   - another row already totals exactly 5 (has claimed Primary) and this
+//     row exceeds 4 (the max left for Secondary), or
+//   - another row totals 5 AND another totals 4 (Primary and Secondary both
+//     claimed) and this row exceeds 3 (the max left for Tertiary), or
+//   - it's tied with another row on the same nonzero point total (can't
+//     tell which of them actually holds that priority).
 function attributePriorityState(character) {
   const spentByGroup = ATTRIBUTE_GROUPS.map((group) => attributePointsSpent(character, group.attributes));
 
-  const sameTotalConflict = spentByGroup.map(
-    (spent, i) => spent !== 0 && spentByGroup.some((other, j) => j !== i && other === spent)
-  );
-  const primaryEligibleCount = spentByGroup.filter((spent) => spent >= 5).length;
+  const conflictFlags = spentByGroup.map((spent, i) => {
+    const others = spentByGroup.filter((_, j) => j !== i);
+    const hasFiveElsewhere = others.includes(5);
+    const hasFourElsewhere = others.includes(4);
+    const tiedElsewhere = spent !== 0 && others.includes(spent);
 
-  const conflictFlags = spentByGroup.map(
-    (spent, i) => sameTotalConflict[i] || (spent >= 5 && primaryEligibleCount > 1)
-  );
+    if (spent > 5) return true;
+    if (hasFiveElsewhere && spent > 4) return true;
+    if (hasFiveElsewhere && hasFourElsewhere && spent > 3) return true;
+    return tiedElsewhere;
+  });
   const hasConflict = conflictFlags.some(Boolean);
 
   const rows = ATTRIBUTE_GROUPS.map((group, i) => {
     const spent = spentByGroup[i];
     const conflict = conflictFlags[i];
+    const others = spentByGroup.filter((_, j) => j !== i);
     let tier = null;
     if (!conflict) {
-      if (spent >= 5) tier = 'primary';
+      if (spent === 5) tier = 'primary';
       else if (spent === 4) tier = 'secondary';
+      else if (others.includes(5) && others.includes(4)) tier = 'tertiary';
     }
     return { group, spent, tier, conflict };
   });

@@ -139,9 +139,31 @@ function renderAttributes() {
 
     attributeConflict = hasConflict;
     updateSaveAvailability();
+    updateAttributesStatusText(rows, hasConflict);
   }
 
   updatePriorities();
+}
+
+const TIER_LABEL = { primary: 'Primary', secondary: 'Secondary', tertiary: 'Tertiary' };
+
+function updateAttributesStatusText(rows, hasConflict) {
+  const statusEl = document.getElementById('attributes-status');
+  if (!statusEl) return;
+
+  statusEl.classList.toggle('priority-conflict', hasConflict);
+
+  if (hasConflict) {
+    statusEl.textContent = 'Error — attribute points overspent';
+    return;
+  }
+  if (rows.every((row) => row.spent === 0)) {
+    statusEl.textContent = 'Allocate 5 / 4 / 3 points across the rows below';
+    return;
+  }
+  statusEl.textContent = rows
+    .map((row) => `${row.group.label}: ${row.tier ? TIER_LABEL[row.tier] : '—'}`)
+    .join('   ');
 }
 
 /* ---------- Skills ---------- */
@@ -601,7 +623,27 @@ function initMenuBridge() {
   });
 }
 
+function initAttributesInfoModal() {
+  const openBtn = document.getElementById('attributes-info-btn');
+  const overlay = document.getElementById('attributes-info-modal');
+  const closeBtn = document.getElementById('attributes-info-close');
+  if (!openBtn || !overlay || !closeBtn) return;
+
+  const open = () => overlay.classList.remove('hidden');
+  const close = () => overlay.classList.add('hidden');
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
+  });
+}
+
 initTabs();
 initToolbar();
 initMenuBridge();
+initAttributesInfoModal();
 renderAll();

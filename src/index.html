@@ -41,7 +41,11 @@
       </div>
 
       <section class="block">
-        <h2>Attributes</h2>
+        <div class="block-header-row">
+          <button type="button" id="attributes-info-btn" class="info-icon" aria-label="Attribute allocation instructions" title="How to allocate Attribute points">i</button>
+          <h2>Attributes</h2>
+          <span id="attributes-status" class="attr-status"></span>
+        </div>
         <div id="attributes-grid" class="attributes-grid"></div>
       </section>
 
@@ -182,6 +186,25 @@
       </section>
     </section>
   </main>
+
+  <div id="attributes-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="attributes-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <p><strong>Instructions:</strong> Allocate the 5 / 4 / 3 points by horizontal row, not by vertical column.</p>
+      <p>The three rows are the Attribute categories:</p>
+      <p>
+        Power: Intelligence, Strength, Presence<br />
+        Finesse: Wits, Dexterity, Manipulation<br />
+        Resistance: Resolve, Stamina, Composure
+      </p>
+      <p>Choose which row is most important to your character:</p>
+      <p>
+        Primary row: add 5 dots<br />
+        Secondary row: add 4 dots<br />
+        Tertiary row: add 3 dots
+      </p>
+    </div>
+  </div>
 
   <script type="module" src="js/renderer.js"></script>
 </body>
