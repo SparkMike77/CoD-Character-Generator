@@ -27,14 +27,25 @@ function attributePointsSpent(character, attributeKeys) {
 }
 
 // Determines each row's Primary/Secondary/Tertiary tier from what's actually
-// been spent, and flags any rows tied on the same nonzero point total (an
-// unresolved conflict - two rows can't both hold the same priority). A
-// row's spent total of 0 is the untouched starting state, not a tie.
+// been spent. A row's spent total of 0 is the untouched starting state, not
+// a tie. Two kinds of ambiguity both count as an unresolved conflict:
+//   - two rows tied on the exact same nonzero point total (can't both hold
+//     the same priority), and
+//   - two or more rows each having reached the Primary bar (>=5) even at
+//     different totals - only one row can actually be Primary, so e.g. 8
+//     and 6 both qualify and are just as unresolved as 5 and 5.
+// (There's no equivalent extra case for Secondary: a row only reaches that
+// tier at exactly 4, which the same-total check above already covers.)
 function attributePriorityState(character) {
   const spentByGroup = ATTRIBUTE_GROUPS.map((group) => attributePointsSpent(character, group.attributes));
 
-  const conflictFlags = spentByGroup.map(
+  const sameTotalConflict = spentByGroup.map(
     (spent, i) => spent !== 0 && spentByGroup.some((other, j) => j !== i && other === spent)
+  );
+  const primaryEligibleCount = spentByGroup.filter((spent) => spent >= 5).length;
+
+  const conflictFlags = spentByGroup.map(
+    (spent, i) => sameTotalConflict[i] || (spent >= 5 && primaryEligibleCount > 1)
   );
   const hasConflict = conflictFlags.some(Boolean);
 
@@ -43,7 +54,7 @@ function attributePriorityState(character) {
     const conflict = conflictFlags[i];
     let tier = null;
     if (!conflict) {
-      if (spent === 5) tier = 'primary';
+      if (spent >= 5) tier = 'primary';
       else if (spent === 4) tier = 'secondary';
     }
     return { group, spent, tier, conflict };
