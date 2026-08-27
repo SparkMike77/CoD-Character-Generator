@@ -5,13 +5,14 @@ import {
   SKILL_LABELS,
   defaultCharacter,
   derivedStats,
-  attributePointsSpent
+  attributePriorityState
 } from './character-model.js';
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
 let dirty = false;
+let attributeConflict = false;
 
 function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -66,40 +67,40 @@ function mergeCharacter(loaded) {
 
 /* ---------- Attributes ---------- */
 
-const PRIORITY_STYLE_CLASS = {
+const TIER_CLASS = {
   primary: 'priority-primary',
-  secondary: 'priority-secondary',
-  tertiary: ''
+  secondary: 'priority-secondary'
 };
 
 function renderAttributes() {
   const grid = document.getElementById('attributes-grid');
   clearEl(grid);
-  ATTRIBUTE_GROUPS.forEach((group) => {
-    const priorityClass = PRIORITY_STYLE_CLASS[group.priority];
 
+  // Per-group DOM refs, filled in below, so updatePriorities() can restyle
+  // every row (not just the one whose dot was clicked) after each change -
+  // a tie can appear or resolve on a row nobody just touched.
+  const rowRefs = [];
+
+  ATTRIBUTE_GROUPS.forEach((group) => {
     const totalCell = document.createElement('div');
     totalCell.className = 'attr-row-total';
     grid.appendChild(totalCell);
 
-    const refreshTotal = () => {
-      const spent = attributePointsSpent(character, group.attributes);
-      totalCell.textContent = `${spent}/${group.budget}`;
-      totalCell.classList.toggle('over-budget', spent > group.budget);
-    };
-
     const rowLabel = document.createElement('div');
-    rowLabel.className = 'attr-row-label' + (priorityClass ? ` ${priorityClass}` : '');
+    rowLabel.className = 'attr-row-label';
     rowLabel.textContent = group.label;
     grid.appendChild(rowLabel);
+
+    const nameEls = [];
 
     group.attributes.forEach((attrKey) => {
       const cell = document.createElement('div');
       cell.className = 'attr-cell';
 
       const name = document.createElement('span');
-      name.className = 'attr-name' + (priorityClass ? ` ${priorityClass}` : '');
+      name.className = 'attr-name';
       name.textContent = ATTRIBUTE_LABELS[attrKey];
+      nameEls.push(name);
 
       const dotsContainer = document.createElement('div');
 
@@ -115,13 +116,32 @@ function renderAttributes() {
           character.attributes[attrKey] = v;
           setDirty(true);
           renderDerived();
-          refreshTotal();
+          updatePriorities();
         }
       });
     });
 
-    refreshTotal();
+    rowRefs.push({ totalCell, rowLabel, nameEls });
   });
+
+  function updatePriorities() {
+    const { rows, hasConflict } = attributePriorityState(character);
+    rows.forEach((row, i) => {
+      const { totalCell, rowLabel, nameEls } = rowRefs[i];
+      totalCell.textContent = row.spent;
+
+      const styleClass = row.conflict ? 'priority-conflict' : TIER_CLASS[row.tier] || '';
+      [totalCell, rowLabel, ...nameEls].forEach((el) => {
+        el.classList.remove('priority-primary', 'priority-secondary', 'priority-conflict');
+        if (styleClass) el.classList.add(styleClass);
+      });
+    });
+
+    attributeConflict = hasConflict;
+    updateSaveAvailability();
+  }
+
+  updatePriorities();
 }
 
 /* ---------- Skills ---------- */
@@ -496,8 +516,24 @@ async function handleOpen() {
   renderAll();
 }
 
+const SAVE_BLOCKED_MESSAGE =
+  'Two Attribute rows have the same number of points spent. Resolve the tie (one row must be uniquely Primary/5 and one uniquely Secondary/4) before saving.';
+
+function updateSaveAvailability() {
+  const saveBtn = document.getElementById('btn-save');
+  const saveAsBtn = document.getElementById('btn-save-as');
+  [saveBtn, saveAsBtn].forEach((btn) => {
+    btn.disabled = attributeConflict;
+    btn.title = attributeConflict ? SAVE_BLOCKED_MESSAGE : '';
+  });
+}
+
 async function handleSave() {
   if (!window.codApi) return;
+  if (attributeConflict) {
+    window.alert(SAVE_BLOCKED_MESSAGE);
+    return;
+  }
   const result = await window.codApi.saveCharacter(character, currentFilePath);
   if (!result) return;
   currentFilePath = result.filePath;
@@ -506,6 +542,10 @@ async function handleSave() {
 
 async function handleSaveAs() {
   if (!window.codApi) return;
+  if (attributeConflict) {
+    window.alert(SAVE_BLOCKED_MESSAGE);
+    return;
+  }
   const result = await window.codApi.saveCharacter(character, null);
   if (!result) return;
   currentFilePath = result.filePath;

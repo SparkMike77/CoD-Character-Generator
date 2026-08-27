@@ -93,6 +93,13 @@ button {
   color: var(--text);
 }
 .toolbar-actions button:hover { background: #efece6; }
+.toolbar-actions button:disabled {
+  opacity: 0.5;
+  background: #e5e2db;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.toolbar-actions button:disabled:hover { background: #e5e2db; }
 
 .file-status {
   margin-left: 8px;
@@ -183,7 +190,7 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
   text-align: right;
   min-width: 32px;
 }
-.attr-row-total.over-budget { color: var(--danger); }
+.attr-row-total.priority-conflict { color: var(--danger); font-weight: 700; }
 .attr-row-label {
   font-size: 11px;
   color: var(--text-muted);
@@ -198,6 +205,12 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 .attr-row-label.priority-secondary,
 .attr-name.priority-secondary {
   font-style: italic;
+}
+.attr-row-label.priority-conflict,
+.attr-name.priority-conflict {
+  font-weight: 400;
+  font-style: normal;
+  color: var(--danger);
 }
 .attr-cell {
   display: flex;
