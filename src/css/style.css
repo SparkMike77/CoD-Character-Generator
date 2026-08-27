@@ -219,7 +219,7 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
   gap: 8px;
   padding: 4px 0;
 }
-.attr-cell .attr-name { min-width: 100px; }
+.attr-name-wrap { display: flex; align-items: center; gap: 4px; min-width: 100px; }
 
 /* Skills */
 .skills-columns {
@@ -483,6 +483,34 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
 }
 .modal-box p { margin: 0 0 12px 0; }
 .modal-box p:last-child { margin-bottom: 0; }
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--accent-strong);
+  margin: 0 0 10px 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-icon-sm {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.2px solid var(--border-strong);
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.info-icon-sm:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
 .modal-close {
   position: absolute;
   top: 6px;

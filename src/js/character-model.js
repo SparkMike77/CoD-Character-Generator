@@ -111,6 +111,18 @@ const ATTRIBUTE_LABELS = {
   presence: 'Presence', manipulation: 'Manipulation', composure: 'Composure'
 };
 
+const ATTRIBUTE_DESCRIPTIONS = {
+  intelligence: 'Raw mental capacity: reasoning, learning, memory, comprehension, and solving complex problems.',
+  wits: 'Mental quickness: noticing details, improvising, reacting under pressure, and thinking on your feet.',
+  resolve: 'Focus and determination: staying on task, resisting distraction, and pushing through mental pressure.',
+  strength: 'Raw bodily force: lifting, carrying, pushing, grappling, and hitting hard.',
+  dexterity: 'Physical coordination: agility, balance, precision, reflexes, and fine motor control.',
+  stamina: 'Bodily resilience: enduring pain, fatigue, illness, exertion, and physical punishment.',
+  presence: 'Force of personality: natural authority, confidence, magnetism, and the ability to command attention.',
+  manipulation: 'Social subtlety: persuading, charming, deceiving, bargaining with, or steering other people.',
+  composure: 'Emotional self-control: remaining calm under pressure and resisting intimidation, temptation, or manipulation.'
+};
+
 function emptyRatedRow() {
   return { name: '', dots: 0 };
 }
@@ -182,6 +194,7 @@ export {
   ATTRIBUTE_GROUPS,
   ATTRIBUTE_COLUMNS,
   ATTRIBUTE_LABELS,
+  ATTRIBUTE_DESCRIPTIONS,
   SKILL_GROUPS,
   SKILL_LABELS,
   SIZE_CATEGORIES,

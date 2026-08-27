@@ -1,6 +1,7 @@
 import {
   ATTRIBUTE_GROUPS,
   ATTRIBUTE_LABELS,
+  ATTRIBUTE_DESCRIPTIONS,
   SKILL_GROUPS,
   SKILL_LABELS,
   defaultCharacter,
@@ -97,14 +98,27 @@ function renderAttributes() {
       const cell = document.createElement('div');
       cell.className = 'attr-cell';
 
+      const nameWrap = document.createElement('span');
+      nameWrap.className = 'attr-name-wrap';
+
+      const infoBtn = document.createElement('button');
+      infoBtn.type = 'button';
+      infoBtn.className = 'info-icon-sm';
+      infoBtn.textContent = 'i';
+      infoBtn.setAttribute('aria-label', `About ${ATTRIBUTE_LABELS[attrKey]}`);
+      infoBtn.addEventListener('click', () => openAttributeDetail(attrKey));
+
       const name = document.createElement('span');
       name.className = 'attr-name';
       name.textContent = ATTRIBUTE_LABELS[attrKey];
       nameEls.push(name);
 
+      nameWrap.appendChild(infoBtn);
+      nameWrap.appendChild(name);
+
       const dotsContainer = document.createElement('div');
 
-      cell.appendChild(name);
+      cell.appendChild(nameWrap);
       cell.appendChild(dotsContainer);
       grid.appendChild(cell);
 
@@ -658,9 +672,32 @@ function initAttributesInfoModal() {
   });
 }
 
+function openAttributeDetail(attrKey) {
+  document.getElementById('attribute-detail-title').textContent = ATTRIBUTE_LABELS[attrKey];
+  document.getElementById('attribute-detail-body').textContent = ATTRIBUTE_DESCRIPTIONS[attrKey];
+  document.getElementById('attribute-detail-modal').classList.remove('hidden');
+}
+
+function initAttributeDetailModal() {
+  const overlay = document.getElementById('attribute-detail-modal');
+  const closeBtn = document.getElementById('attribute-detail-close');
+  if (!overlay || !closeBtn) return;
+
+  const close = () => overlay.classList.add('hidden');
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
+  });
+}
+
 initTabs();
 initToolbar();
 initMenuBridge();
 initAttributesInfoModal();
+initAttributeDetailModal();
 initSizeControl();
 renderAll();
