@@ -1,0 +1,19 @@
+## Node / Electron
+node_modules/
+dist/
+out/
+build/
+release/
+*.log
+npm-debug.log*
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Editor
+.vscode/
+.idea/
+
+## Copyrighted reference material - local use only, never committed
+reference/

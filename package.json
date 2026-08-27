@@ -1,0 +1,32 @@
+{
+  "name": "cod-character-generator",
+  "productName": "CoD Character Generator",
+  "version": "0.1.0",
+  "description": "Windows character generator and play tool for Chronicles of Darkness, 2nd Edition (baseline humans).",
+  "main": "src/main.js",
+  "author": "SparkMike77",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.sparkmike77.codchargen",
+    "productName": "CoD Character Generator",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}

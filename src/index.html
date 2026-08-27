@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+<title>CoD Character Generator</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="app-toolbar">
+    <h1>CoD Character Generator</h1>
+    <div class="toolbar-actions">
+      <button type="button" id="btn-new">New</button>
+      <button type="button" id="btn-open">Open...</button>
+      <button type="button" id="btn-save">Save</button>
+      <button type="button" id="btn-save-as">Save As...</button>
+      <span id="file-status" class="file-status">Unsaved character</span>
+    </div>
+  </header>
+
+  <nav class="page-tabs">
+    <button type="button" class="tab-btn active" data-page="page-front">Character Sheet</button>
+    <button type="button" class="tab-btn" data-page="page-back">Details &amp; Combat</button>
+  </nav>
+
+  <main>
+    <!-- PAGE 1 -->
+    <section id="page-front" class="page active">
+      <div class="meta-grid">
+        <label>Name <input type="text" data-meta="name" /></label>
+        <label>Virtue <input type="text" data-meta="virtue" /></label>
+        <label>Cell <input type="text" data-meta="cell" /></label>
+
+        <label>Player <input type="text" data-meta="player" /></label>
+        <label>Vice <input type="text" data-meta="vice" /></label>
+        <label>Compact <input type="text" data-meta="compact" /></label>
+
+        <label>Chronicle <input type="text" data-meta="chronicle" /></label>
+        <label>Concept <input type="text" data-meta="concept" /></label>
+        <label>Conspiracy <input type="text" data-meta="conspiracy" /></label>
+      </div>
+
+      <section class="block">
+        <h2>Attributes</h2>
+        <div id="attributes-grid" class="attributes-grid"></div>
+      </section>
+
+      <div class="two-col">
+        <section class="block">
+          <h2>Skills</h2>
+          <div id="skills-columns" class="skills-columns"></div>
+        </section>
+
+        <section class="block">
+          <h2>Other Traits</h2>
+
+          <div class="subsection">
+            <h3>Merits</h3>
+            <div id="merits-list" class="rated-list"></div>
+            <button type="button" id="add-merit" class="add-row-btn">+ Add Merit</button>
+          </div>
+
+          <div class="traits-grid">
+            <div class="subsection">
+              <h3>Aspirations</h3>
+              <div id="aspirations-list" class="line-list"></div>
+            </div>
+            <div class="subsection">
+              <h3>Conditions</h3>
+              <div id="conditions-list" class="line-list"></div>
+            </div>
+            <div class="subsection">
+              <h3>Touchstones</h3>
+              <div id="touchstones-list" class="line-list"></div>
+            </div>
+            <div class="subsection">
+              <h3>The Code</h3>
+              <div id="code-list" class="line-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <h2>Health &amp; Willpower</h2>
+
+          <div class="subsection">
+            <h3>Health <span class="derived-note">(Stamina + Size)</span></h3>
+            <div id="health-track"></div>
+          </div>
+
+          <div class="subsection">
+            <h3>Willpower <span class="derived-note">(Resolve + Composure)</span></h3>
+            <div id="willpower-track"></div>
+            <label class="inline-check">
+              <span>Risked</span>
+              <div id="willpower-risked"></div>
+            </label>
+          </div>
+
+          <div class="subsection">
+            <h3>Integrity <span class="derived-note">(starts at 7)</span></h3>
+            <div id="integrity-ladder"></div>
+          </div>
+
+          <div class="subsection derived-readout">
+            <div><span>Size</span><output id="derived-size"></output></div>
+            <div><span>Speed</span><output id="derived-speed"></output></div>
+            <div><span>Defense</span><output id="derived-defense"></output></div>
+            <div><span>Initiative Mod</span><output id="derived-initiative"></output></div>
+            <div><span>Armor</span><input type="text" data-field="armor" /></div>
+            <div><span>Experience</span><input type="number" min="0" data-field="experience" /></div>
+          </div>
+
+          <div class="subsection">
+            <h3>Beats</h3>
+            <div id="beats-track"></div>
+            <h3>Group Beats</h3>
+            <div id="group-beats-track"></div>
+          </div>
+        </section>
+      </div>
+
+      <p class="reference-key">
+        Attributes 5/4/3 &bull; Skills 11/7/4 (+3 Specialties) &bull; Merits 7 &bull;
+        Health = Stamina + Size &bull; Willpower = Resolve + Composure &bull; Size = 5 for adult humans &bull;
+        Defense = lower of Dexterity or Wits + Athletics &bull; Initiative Mod = Dexterity + Composure &bull;
+        Speed = Strength + Dexterity + 5 &bull; Starting Integrity = 7
+      </p>
+    </section>
+
+    <!-- PAGE 2 -->
+    <section id="page-back" class="page">
+      <div class="two-col">
+        <section class="block">
+          <h2>Endowments</h2>
+          <div id="endowments-list" class="rated-list"></div>
+          <button type="button" id="add-endowment" class="add-row-btn">+ Add Endowment</button>
+
+          <h2>Tactics</h2>
+          <div id="tactics-list" class="line-list"></div>
+        </section>
+
+        <section class="block">
+          <h2>History</h2>
+          <textarea data-field="description.history" rows="8"></textarea>
+
+          <h2>Description</h2>
+          <div class="description-grid">
+            <label>Age <input type="text" data-field="description.age" /></label>
+            <label>Height <input type="text" data-field="description.height" /></label>
+            <label>Hair <input type="text" data-field="description.hair" /></label>
+            <label>Weight <input type="text" data-field="description.weight" /></label>
+            <label>Eyes <input type="text" data-field="description.eyes" /></label>
+            <label>Race <input type="text" data-field="description.race" /></label>
+            <label>Sex <input type="text" data-field="description.sex" /></label>
+            <label>Nationality <input type="text" data-field="description.nationality" /></label>
+          </div>
+          <textarea data-field="description.appearance" rows="5" placeholder="Physical description..."></textarea>
+        </section>
+      </div>
+
+      <section class="block">
+        <h2>Equipment</h2>
+        <table class="data-table" id="equipment-table">
+          <thead>
+            <tr><th>Item</th><th>Durability</th><th>Structure</th><th>Size</th><th>Cost</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <button type="button" id="add-equipment" class="add-row-btn">+ Add Item</button>
+      </section>
+
+      <section class="block">
+        <h2>Combat</h2>
+        <table class="data-table" id="combat-table">
+          <thead>
+            <tr><th>Weapon/Attack</th><th>Dmg</th><th>Range</th><th>Clip</th><th>Init</th><th>Str</th><th>Size</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <button type="button" id="add-combat" class="add-row-btn">+ Add Weapon</button>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="js/renderer.js"></script>
+</body>
+</html>
