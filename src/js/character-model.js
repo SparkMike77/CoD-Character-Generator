@@ -10,11 +10,20 @@
 //   Speed = Strength + Dexterity + 5
 //   Starting Integrity = 7
 
+// Attribute point-buy priorities: each row gets a fixed number of free
+// points to spend across its three attributes (every attribute already
+// starts at 1 dot, so only dots after the first count toward the total).
+// Primary/Secondary/Tertiary is fixed to Power/Finesse/Resistance in that
+// order, matching the reference sheet's row order.
 const ATTRIBUTE_GROUPS = [
-  { label: 'Power', attributes: ['intelligence', 'strength', 'presence'] },
-  { label: 'Finesse', attributes: ['wits', 'dexterity', 'manipulation'] },
-  { label: 'Resistance', attributes: ['resolve', 'stamina', 'composure'] }
+  { label: 'Power', priority: 'primary', budget: 5, attributes: ['intelligence', 'strength', 'presence'] },
+  { label: 'Finesse', priority: 'secondary', budget: 4, attributes: ['wits', 'dexterity', 'manipulation'] },
+  { label: 'Resistance', priority: 'tertiary', budget: 3, attributes: ['resolve', 'stamina', 'composure'] }
 ];
+
+function attributePointsSpent(character, attributeKeys) {
+  return attributeKeys.reduce((sum, key) => sum + (character.attributes[key] - 1), 0);
+}
 
 const ATTRIBUTE_COLUMNS = [
   { label: 'Mental', attributes: ['intelligence', 'wits', 'resolve'] },
@@ -122,5 +131,6 @@ export {
   SKILL_GROUPS,
   SKILL_LABELS,
   defaultCharacter,
-  derivedStats
+  derivedStats,
+  attributePointsSpent
 };

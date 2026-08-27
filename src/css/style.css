@@ -172,15 +172,32 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 /* Attributes */
 .attributes-grid {
   display: grid;
-  grid-template-columns: auto repeat(3, 1fr);
+  grid-template-columns: auto auto repeat(3, 1fr);
   gap: 6px 18px;
   align-items: center;
 }
+.attr-row-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: right;
+  min-width: 32px;
+}
+.attr-row-total.over-budget { color: var(--danger); }
 .attr-row-label {
   font-size: 11px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.attr-row-label.priority-primary,
+.attr-name.priority-primary {
+  font-weight: 700;
+  font-style: italic;
+}
+.attr-row-label.priority-secondary,
+.attr-name.priority-secondary {
+  font-style: italic;
 }
 .attr-cell {
   display: flex;

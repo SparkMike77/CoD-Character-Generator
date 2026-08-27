@@ -4,7 +4,8 @@ import {
   SKILL_GROUPS,
   SKILL_LABELS,
   defaultCharacter,
-  derivedStats
+  derivedStats,
+  attributePointsSpent
 } from './character-model.js';
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 
@@ -65,12 +66,30 @@ function mergeCharacter(loaded) {
 
 /* ---------- Attributes ---------- */
 
+const PRIORITY_STYLE_CLASS = {
+  primary: 'priority-primary',
+  secondary: 'priority-secondary',
+  tertiary: ''
+};
+
 function renderAttributes() {
   const grid = document.getElementById('attributes-grid');
   clearEl(grid);
   ATTRIBUTE_GROUPS.forEach((group) => {
+    const priorityClass = PRIORITY_STYLE_CLASS[group.priority];
+
+    const totalCell = document.createElement('div');
+    totalCell.className = 'attr-row-total';
+    grid.appendChild(totalCell);
+
+    const refreshTotal = () => {
+      const spent = attributePointsSpent(character, group.attributes);
+      totalCell.textContent = `${spent}/${group.budget}`;
+      totalCell.classList.toggle('over-budget', spent > group.budget);
+    };
+
     const rowLabel = document.createElement('div');
-    rowLabel.className = 'attr-row-label';
+    rowLabel.className = 'attr-row-label' + (priorityClass ? ` ${priorityClass}` : '');
     rowLabel.textContent = group.label;
     grid.appendChild(rowLabel);
 
@@ -79,7 +98,7 @@ function renderAttributes() {
       cell.className = 'attr-cell';
 
       const name = document.createElement('span');
-      name.className = 'attr-name';
+      name.className = 'attr-name' + (priorityClass ? ` ${priorityClass}` : '');
       name.textContent = ATTRIBUTE_LABELS[attrKey];
 
       const dotsContainer = document.createElement('div');
@@ -96,9 +115,12 @@ function renderAttributes() {
           character.attributes[attrKey] = v;
           setDirty(true);
           renderDerived();
+          refreshTotal();
         }
       });
     });
+
+    refreshTotal();
   });
 }
 
