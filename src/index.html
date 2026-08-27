@@ -107,7 +107,17 @@
           </div>
 
           <div class="subsection derived-readout">
-            <div><span>Size</span><output id="derived-size"></output></div>
+            <div>
+              <span>Size</span>
+              <span class="size-control">
+                <select id="size-category-select">
+                  <option value="small">Small</option>
+                  <option value="average">Average</option>
+                  <option value="giant">Giant</option>
+                </select>
+                <output id="derived-size"></output>
+              </span>
+            </div>
             <div><span>Speed</span><output id="derived-speed"></output></div>
             <div><span>Defense</span><output id="derived-defense"></output></div>
             <div><span>Initiative Mod</span><output id="derived-initiative"></output></div>

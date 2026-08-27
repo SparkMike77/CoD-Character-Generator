@@ -152,18 +152,25 @@ function updateAttributesStatusText(rows, hasConflict) {
   if (!statusEl) return;
 
   statusEl.classList.toggle('priority-conflict', hasConflict);
+  clearEl(statusEl);
 
   if (hasConflict) {
+    statusEl.classList.add('single');
     statusEl.textContent = 'Error — attribute points overspent';
     return;
   }
   if (rows.every((row) => row.spent === 0)) {
+    statusEl.classList.add('single');
     statusEl.textContent = 'Allocate 5 / 4 / 3 points across the rows below';
     return;
   }
-  statusEl.textContent = rows
-    .map((row) => `${row.group.label}: ${row.tier ? TIER_LABEL[row.tier] : '—'}`)
-    .join('   ');
+
+  statusEl.classList.remove('single');
+  rows.forEach((row) => {
+    const item = document.createElement('span');
+    item.textContent = `${row.group.label}: ${row.tier ? TIER_LABEL[row.tier] : '—'}`;
+    statusEl.appendChild(item);
+  });
 }
 
 /* ---------- Skills ---------- */
@@ -409,12 +416,21 @@ function renderBeats() {
 
 function renderDerived() {
   const d = derivedStats(character);
+  document.getElementById('size-category-select').value = character.sizeCategory;
   document.getElementById('derived-size').textContent = d.size;
   document.getElementById('derived-speed').textContent = d.speed;
   document.getElementById('derived-defense').textContent = d.defense;
   document.getElementById('derived-initiative').textContent = d.initiativeMod;
   renderHealth();
   renderWillpower();
+}
+
+function initSizeControl() {
+  document.getElementById('size-category-select').addEventListener('change', (e) => {
+    character.sizeCategory = e.target.value;
+    setDirty(true);
+    renderDerived();
+  });
 }
 
 /* ---------- Equipment / Combat tables ---------- */
@@ -646,4 +662,5 @@ initTabs();
 initToolbar();
 initMenuBridge();
 initAttributesInfoModal();
+initSizeControl();
 renderAll();

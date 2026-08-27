@@ -357,6 +357,8 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
   color: var(--accent-strong);
 }
 .derived-readout input { width: 60px; }
+.derived-readout select { font-size: 12px; padding: 2px 4px; }
+.size-control { display: flex; align-items: center; gap: 6px; }
 
 .derived-note { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-size: 11px; }
 
@@ -421,14 +423,22 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
   margin-bottom: 0;
 }
 .attr-status {
-  margin-left: auto;
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
+}
+.attr-status span {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.attr-status.single { justify-content: flex-end; }
 .attr-status.priority-conflict { color: var(--danger); }
 
 .info-icon {

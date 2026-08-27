@@ -115,6 +115,14 @@ function emptyRatedRow() {
   return { name: '', dots: 0 };
 }
 
+const BASE_SIZE = 5; // adult human baseline, per the reference sheet
+
+const SIZE_CATEGORIES = {
+  small: { label: 'Small', modifier: -1 },
+  average: { label: 'Average', modifier: 0 },
+  giant: { label: 'Giant', modifier: 1 }
+};
+
 function defaultCharacter() {
   const attributes = {};
   Object.keys(ATTRIBUTE_LABELS).forEach((key) => { attributes[key] = 1; });
@@ -146,7 +154,7 @@ function defaultCharacter() {
     groupBeats: 0,
     experience: 0,
     armor: '',
-    size: 5,
+    sizeCategory: 'average',
     description: {
       age: '', hair: '', eyes: '', sex: '',
       height: '', weight: '', race: 'Human', nationality: '',
@@ -159,12 +167,13 @@ function defaultCharacter() {
 
 function derivedStats(character) {
   const a = character.attributes;
-  const size = character.size || 5;
+  const sizeModifier = SIZE_CATEGORIES[character.sizeCategory]?.modifier ?? 0;
+  const size = BASE_SIZE + sizeModifier;
   const health = a.stamina + size;
   const willpowerMax = a.resolve + a.composure;
   const defense = Math.min(a.dexterity, a.wits) + (character.skills.athletics || 0);
   const initiativeMod = a.dexterity + a.composure;
-  const speed = a.strength + a.dexterity + 5;
+  const speed = a.strength + a.dexterity + size;
 
   return { health, willpowerMax, defense, initiativeMod, speed, size };
 }
@@ -175,6 +184,7 @@ export {
   ATTRIBUTE_LABELS,
   SKILL_GROUPS,
   SKILL_LABELS,
+  SIZE_CATEGORIES,
   defaultCharacter,
   derivedStats,
   attributePointsSpent,
