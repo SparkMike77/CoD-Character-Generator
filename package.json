@@ -8,7 +8,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "electron .",
+    "start": "node scripts/start.js",
     "dist": "electron-builder --win"
   },
   "devDependencies": {
@@ -28,5 +28,8 @@
     "directories": {
       "output": "release"
     }
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
   }
 }
