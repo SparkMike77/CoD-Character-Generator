@@ -193,10 +193,11 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 
 /* Skills */
 .skills-columns {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
 }
+.skill-column { margin-bottom: 14px; }
+.skill-column:last-child { margin-bottom: 0; }
 .skill-col-header {
   display: flex;
   justify-content: space-between;
