@@ -9,5 +9,9 @@ contextBridge.exposeInMainWorld('gmApi', {
   },
   onMenuAction: (callback) => {
     ipcRenderer.on('menu-action', (_event, action) => callback(action));
-  }
+  },
+  getCampaign: () => ipcRenderer.invoke('campaign:get'),
+  newCampaign: () => ipcRenderer.invoke('campaign:new'),
+  openCampaign: () => ipcRenderer.invoke('campaign:open'),
+  saveCampaign: (content) => ipcRenderer.invoke('campaign:save', content)
 });

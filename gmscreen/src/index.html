@@ -11,31 +11,61 @@
     <h1>GMScreen</h1>
   </header>
 
+  <nav class="page-tabs">
+    <button type="button" class="tab-btn active" data-page="page-session">Session</button>
+    <button type="button" class="tab-btn" data-page="page-campaign">Campaign</button>
+  </nav>
+
   <main>
-    <section class="block">
-      <h2>Session</h2>
-      <label class="session-name-field">
-        <span>Session Name</span>
-        <input type="text" id="session-name-input" />
-      </label>
-      <p class="hint">Shown to players when they discover this session on the network.</p>
+    <section id="page-session" class="page active">
+      <section class="block">
+        <h2>Session</h2>
+        <label class="session-name-field">
+          <span>Session Name</span>
+          <input type="text" id="session-name-input" />
+        </label>
+        <p class="hint">Shown to players when they discover this session on the network.</p>
+      </section>
+
+      <section class="block">
+        <h2>Pairing PIN</h2>
+        <p class="hint">Give this to your players. They'll enter it once in CoD Character Manager to connect.</p>
+        <div id="pin-display" class="pin-display"></div>
+        <button type="button" id="rotate-pin-btn" class="add-row-btn">Rotate PIN</button>
+      </section>
+
+      <section class="block">
+        <h2>Status</h2>
+        <div class="status-grid">
+          <div><span>Advertising as</span><output id="status-address"></output></div>
+          <div><span>Paired players</span><output id="status-paired"></output></div>
+        </div>
+      </section>
     </section>
 
-    <section class="block">
-      <h2>Pairing PIN</h2>
-      <p class="hint">Give this to your players. They'll enter it once in CoD Character Manager to connect.</p>
-      <div id="pin-display" class="pin-display"></div>
-      <button type="button" id="rotate-pin-btn" class="add-row-btn">Rotate PIN</button>
-    </section>
-
-    <section class="block">
-      <h2>Status</h2>
-      <div class="status-grid">
-        <div><span>Advertising as</span><output id="status-address"></output></div>
-        <div><span>Paired players</span><output id="status-paired"></output></div>
-      </div>
+    <section id="page-campaign" class="page">
+      <section class="block campaign-block">
+        <div class="block-header-row">
+          <h2>Campaign</h2>
+          <div class="campaign-toolbar">
+            <span id="campaign-filename" class="hint">No campaign loaded</span>
+            <button type="button" id="campaign-preview-toggle" class="add-row-btn">Preview</button>
+            <button type="button" id="campaign-save-btn" class="add-row-btn" disabled>Save</button>
+          </div>
+        </div>
+        <p class="hint">Use File &gt; New &gt; Campaign to start one from the template, or File &gt; Open Campaign... to edit an existing one.</p>
+        <textarea id="campaign-editor" class="campaign-editor" spellcheck="false" placeholder="No campaign file is open."></textarea>
+        <div id="campaign-preview" class="markdown-pane campaign-preview hidden"></div>
+      </section>
     </section>
   </main>
+
+  <div id="session-needs-campaign-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="session-needs-campaign-close" class="modal-close" aria-label="Close">&times;</button>
+      <p>Please load a Campaign before starting a Session.</p>
+    </div>
+  </div>
 
   <div id="about-modal" class="modal-overlay hidden">
     <div class="modal-box about-modal-box">

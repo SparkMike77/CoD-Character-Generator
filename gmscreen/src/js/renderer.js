@@ -1,4 +1,9 @@
+import { renderMarkdown } from './markdown.js';
+
 let renameTimer = null;
+let currentCampaignPath = null;
+let campaignDirty = false;
+let campaignPreviewMode = false;
 
 function renderState(state) {
   const nameInput = document.getElementById('session-name-input');
@@ -16,6 +21,21 @@ function renderState(state) {
   document.getElementById('status-address').textContent = `${state.lanAddress}:${state.port}`;
   document.getElementById('status-paired').textContent = state.pairedCount;
 }
+
+/* ---------- Tabs ---------- */
+
+function activateTab(pageId) {
+  document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.page === pageId));
+  document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === pageId));
+}
+
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.page));
+  });
+}
+
+/* ---------- About modal ---------- */
 
 function openAboutModal() {
   document.getElementById('about-modal').classList.remove('hidden');
@@ -39,10 +59,112 @@ function initAboutModal() {
   });
 }
 
+/* ---------- "load a campaign first" modal ---------- */
+
+function openSessionNeedsCampaignModal() {
+  document.getElementById('session-needs-campaign-modal').classList.remove('hidden');
+}
+
+function closeSessionNeedsCampaignModal() {
+  document.getElementById('session-needs-campaign-modal').classList.add('hidden');
+}
+
+function initSessionNeedsCampaignModal() {
+  const overlay = document.getElementById('session-needs-campaign-modal');
+  const closeBtn = document.getElementById('session-needs-campaign-close');
+  if (!overlay || !closeBtn) return;
+
+  closeBtn.addEventListener('click', closeSessionNeedsCampaignModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeSessionNeedsCampaignModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeSessionNeedsCampaignModal();
+  });
+}
+
+/* ---------- Campaign editor ---------- */
+
+function updateCampaignFilenameLabel() {
+  const el = document.getElementById('campaign-filename');
+  el.textContent = currentCampaignPath ? currentCampaignPath.split(/[\\/]/).pop() : 'No campaign loaded';
+}
+
+function setCampaignDirty(value) {
+  campaignDirty = value;
+  document.getElementById('campaign-save-btn').disabled = !value;
+}
+
+function renderCampaignPreview() {
+  const content = document.getElementById('campaign-editor').value;
+  document.getElementById('campaign-preview').innerHTML = renderMarkdown(content);
+}
+
+function applyCampaign(campaign) {
+  currentCampaignPath = campaign.filePath;
+  document.getElementById('campaign-editor').value = campaign.content;
+  setCampaignDirty(false);
+  updateCampaignFilenameLabel();
+  if (campaignPreviewMode) renderCampaignPreview();
+}
+
+async function handleSaveCampaign() {
+  const content = document.getElementById('campaign-editor').value;
+  const result = await window.gmApi.saveCampaign(content);
+  if (result.ok) setCampaignDirty(false);
+  else window.alert(result.error);
+}
+
+async function handleNewCampaignClick() {
+  if (campaignDirty && !window.confirm('Discard unsaved changes to the current campaign?')) return;
+  const result = await window.gmApi.newCampaign();
+  if (!result) return;
+  applyCampaign(result);
+  activateTab('page-campaign');
+}
+
+async function handleOpenCampaignClick() {
+  if (campaignDirty && !window.confirm('Discard unsaved changes to the current campaign?')) return;
+  const result = await window.gmApi.openCampaign();
+  if (!result) return;
+  applyCampaign(result);
+  activateTab('page-campaign');
+}
+
+function toggleCampaignPreview() {
+  campaignPreviewMode = !campaignPreviewMode;
+  const editor = document.getElementById('campaign-editor');
+  const preview = document.getElementById('campaign-preview');
+  const btn = document.getElementById('campaign-preview-toggle');
+
+  if (campaignPreviewMode) {
+    renderCampaignPreview();
+    editor.classList.add('hidden');
+    preview.classList.remove('hidden');
+    btn.textContent = 'Edit';
+  } else {
+    preview.classList.add('hidden');
+    editor.classList.remove('hidden');
+    btn.textContent = 'Preview';
+  }
+}
+
+function initCampaignEditor() {
+  document.getElementById('campaign-editor').addEventListener('input', () => setCampaignDirty(true));
+  document.getElementById('campaign-save-btn').addEventListener('click', handleSaveCampaign);
+  document.getElementById('campaign-preview-toggle').addEventListener('click', toggleCampaignPreview);
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      if (campaignDirty) handleSaveCampaign();
+    }
+  });
+}
+
 async function init() {
   const state = await window.gmApi.getSession();
   renderState(state);
-
   window.gmApi.onSessionUpdate(renderState);
 
   document.getElementById('session-name-input').addEventListener('input', (e) => {
@@ -55,9 +177,19 @@ async function init() {
     window.gmApi.rotatePin();
   });
 
+  const campaign = await window.gmApi.getCampaign();
+  applyCampaign(campaign);
+
+  initTabs();
+  initCampaignEditor();
   initAboutModal();
+  initSessionNeedsCampaignModal();
+
   window.gmApi.onMenuAction((action) => {
     if (action === 'about') openAboutModal();
+    else if (action === 'new-campaign') handleNewCampaignClick();
+    else if (action === 'open-campaign') handleOpenCampaignClick();
+    else if (action === 'session-needs-campaign') openSessionNeedsCampaignModal();
   });
 }
 
