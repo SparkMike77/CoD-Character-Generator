@@ -691,6 +691,25 @@ function initSkillsInfoModal() {
   });
 }
 
+function initBeatsInfoModal() {
+  const openBtn = document.getElementById('beats-info-btn');
+  const overlay = document.getElementById('beats-info-modal');
+  const closeBtn = document.getElementById('beats-info-close');
+  if (!openBtn || !overlay || !closeBtn) return;
+
+  const open = () => overlay.classList.remove('hidden');
+  const close = () => overlay.classList.add('hidden');
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
+  });
+}
+
 function openAttributeDetail(attrKey) {
   document.getElementById('attribute-detail-title').textContent = ATTRIBUTE_LABELS[attrKey];
   document.getElementById('attribute-detail-body').textContent = ATTRIBUTE_DESCRIPTIONS[attrKey];
@@ -719,5 +738,6 @@ initMenuBridge();
 initAttributesInfoModal();
 initAttributeDetailModal();
 initSkillsInfoModal();
+initBeatsInfoModal();
 initSizeControl();
 renderAll();

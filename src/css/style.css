@@ -422,6 +422,8 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
   padding-bottom: 0;
   margin-bottom: 0;
 }
+.subheader-row { display: flex; align-items: center; gap: 6px; margin-bottom: 0.5em; }
+.subheader-row h3 { margin-bottom: 0; }
 .attr-status {
   flex: 1 1 auto;
   display: flex;
