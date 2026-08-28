@@ -1,7 +1,7 @@
 {
   "name": "cod-character-manager",
   "productName": "CoD Character Manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Windows character manager and play tool for Chronicles of Darkness, 2nd Edition (baseline humans). Pairs with the GMScreen server for GM-driven configuration.",
   "main": "src/main.js",
   "author": "SparkMike77",
