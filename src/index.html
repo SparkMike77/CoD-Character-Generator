@@ -125,7 +125,13 @@
             <div><span>Defense</span><output id="derived-defense"></output></div>
             <div><span>Initiative Mod</span><output id="derived-initiative"></output></div>
             <div><span>Armor</span><input type="text" data-field="armor" /></div>
-            <div><span>Experience</span><input type="number" min="0" data-field="experience" /></div>
+            <div>
+              <span>
+                Experience
+                <button type="button" id="experience-info-btn" class="info-icon-sm" aria-label="Experience point costs" title="What does Experience buy?">i</button>
+              </span>
+              <input type="number" min="0" data-field="experience" />
+            </div>
           </div>
 
           <div class="subsection">
@@ -261,6 +267,20 @@
       <p>You roll a dramatic failure on a chance die.</p>
       <p>A Breaking Point occurs: your character faces something that challenges their Integrity, morality, or sense of self.</p>
       <p>The Storyteller may award Beats for significant story developments, especially when a character&rsquo;s choices create real complications.</p>
+    </div>
+  </div>
+
+  <div id="experience-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="experience-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Experience Costs</h3>
+      <table class="modal-cost-table">
+        <tr><td>Merit dot</td><td>1 Experience per dot</td></tr>
+        <tr><td>Skill Specialty</td><td>1 Experience</td></tr>
+        <tr><td>Skill dot</td><td>2 Experience per dot</td></tr>
+        <tr><td>Attribute dot</td><td>4 Experience per dot</td></tr>
+        <tr><td>Integrity dot</td><td>2 Experience per dot</td></tr>
+      </table>
     </div>
   </div>
 

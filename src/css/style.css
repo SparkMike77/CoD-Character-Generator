@@ -359,6 +359,7 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 .derived-readout input { width: 60px; }
 .derived-readout select { font-size: 12px; padding: 2px 4px; }
 .size-control { display: flex; align-items: center; gap: 6px; }
+.derived-readout span .info-icon-sm { vertical-align: middle; margin-left: 2px; }
 
 .derived-note { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-size: 11px; }
 
@@ -495,6 +496,15 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
   border-bottom: none;
   padding-bottom: 0;
 }
+
+.modal-cost-table { width: 100%; border-collapse: collapse; }
+.modal-cost-table td {
+  padding: 5px 4px;
+  border-bottom: 1px dotted var(--border);
+}
+.modal-cost-table tr:last-child td { border-bottom: none; }
+.modal-cost-table td:first-child { font-weight: 600; color: var(--accent-strong); }
+.modal-cost-table td:last-child { text-align: right; color: var(--text-muted); }
 
 .info-icon-sm {
   flex-shrink: 0;
