@@ -302,6 +302,10 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 .rated-row { display: flex; align-items: center; gap: 8px; }
 .rated-row input[type="text"] { flex: 1 1 auto; min-width: 0; }
 .rated-row .remove-row { border: none; background: none; color: var(--danger); font-size: 14px; padding: 0 4px; }
+.rated-list.priority-conflict .rated-row input[type="text"] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
 
 .add-row-btn {
   border: 1px dashed var(--border-strong);
@@ -357,6 +361,11 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
   padding: 0;
 }
 .integrity-marker.filled { background: var(--dot-filled); }
+.integrity-ladder.priority-conflict .integrity-marker.filled {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.integrity-ladder.priority-conflict .integrity-number { color: var(--danger); }
 
 /* Derived readout */
 .derived-readout {

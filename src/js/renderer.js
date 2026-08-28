@@ -7,7 +7,8 @@ import {
   defaultCharacter,
   derivedStats,
   attributePriorityState,
-  skillPriorityState
+  skillPriorityState,
+  computeExperienceState
 } from './character-model.js';
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 
@@ -15,6 +16,17 @@ let character = defaultCharacter();
 let currentFilePath = null;
 let dirty = false;
 let attributeConflict = false;
+
+// Populated by renderAttributes()/renderSkills() each render pass, so the
+// cross-cutting refresh functions below can restyle everything without
+// re-building the DOM. Experience is one shared pool, so ANY change
+// anywhere (an attribute dot, a skill dot, a merit dot, a specialty, the
+// Integrity ladder, or the Experience field itself) can flip whether XP
+// covers everyone's overspend - every one of those change handlers calls
+// refreshAllValidation(), not just the domain it directly touched.
+let attributeRowRefs = [];
+let skillRefs = {};
+let skillGroupList = [];
 
 function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -77,11 +89,7 @@ const TIER_CLASS = {
 function renderAttributes() {
   const grid = document.getElementById('attributes-grid');
   clearEl(grid);
-
-  // Per-group DOM refs, filled in below, so updatePriorities() can restyle
-  // every row (not just the one whose dot was clicked) after each change -
-  // a tie can appear or resolve on a row nobody just touched.
-  const rowRefs = [];
+  attributeRowRefs = [];
 
   ATTRIBUTE_GROUPS.forEach((group) => {
     const totalCell = document.createElement('div');
@@ -131,33 +139,31 @@ function renderAttributes() {
           character.attributes[attrKey] = v;
           setDirty(true);
           renderDerived();
-          updatePriorities();
+          refreshAllValidation();
         }
       });
     });
 
-    rowRefs.push({ totalCell, rowLabel, nameEls });
+    attributeRowRefs.push({ totalCell, rowLabel, nameEls });
+  });
+}
+
+function refreshAttributePriorities() {
+  const { rows, hasConflict } = attributePriorityState(character);
+  rows.forEach((row, i) => {
+    const { totalCell, rowLabel, nameEls } = attributeRowRefs[i];
+    totalCell.textContent = row.spent;
+
+    const styleClass = row.conflict ? 'priority-conflict' : TIER_CLASS[row.tier] || '';
+    [totalCell, rowLabel, ...nameEls].forEach((el) => {
+      el.classList.remove('priority-primary', 'priority-secondary', 'priority-conflict');
+      if (styleClass) el.classList.add(styleClass);
+    });
   });
 
-  function updatePriorities() {
-    const { rows, hasConflict } = attributePriorityState(character);
-    rows.forEach((row, i) => {
-      const { totalCell, rowLabel, nameEls } = rowRefs[i];
-      totalCell.textContent = row.spent;
-
-      const styleClass = row.conflict ? 'priority-conflict' : TIER_CLASS[row.tier] || '';
-      [totalCell, rowLabel, ...nameEls].forEach((el) => {
-        el.classList.remove('priority-primary', 'priority-secondary', 'priority-conflict');
-        if (styleClass) el.classList.add(styleClass);
-      });
-    });
-
-    attributeConflict = hasConflict;
-    updateSaveAvailability();
-    updateAttributesStatusText(rows, hasConflict);
-  }
-
-  updatePriorities();
+  attributeConflict = hasConflict;
+  updateSaveAvailability();
+  updateAttributesStatusText(rows, hasConflict);
 }
 
 const TIER_LABEL = { primary: 'Primary', secondary: 'Secondary', tertiary: 'Tertiary' };
@@ -221,14 +227,10 @@ function renderSkills() {
   const container = document.getElementById('skills-columns');
   clearEl(container);
 
-  const groupList = Object.values(SKILL_GROUPS);
-  // skillKey -> { nameSpan, tierSup }, filled in below, so
-  // updateSkillPriorities() can restyle every skill (not just the one whose
-  // dot was clicked) after each change - a category's tier/conflict state
-  // depends on all three categories' totals, not just its own.
-  const skillRefs = {};
+  skillGroupList = Object.values(SKILL_GROUPS);
+  skillRefs = {};
 
-  groupList.forEach((group) => {
+  skillGroupList.forEach((group) => {
     const col = document.createElement('div');
     col.className = 'skill-column';
 
@@ -277,6 +279,7 @@ function renderSkills() {
         setSpecialty(skillKey, e.target.value);
         setDirty(true);
         updateSpecialtyDot();
+        refreshAllValidation();
       });
 
       row.appendChild(nameSpan);
@@ -293,34 +296,32 @@ function renderSkills() {
           character.skills[skillKey] = v;
           setDirty(true);
           renderDerived();
-          updateSkillPriorities();
+          refreshAllValidation();
         }
       });
     });
 
     container.appendChild(col);
   });
+}
 
-  function updateSkillPriorities() {
-    const { rows } = skillPriorityState(character);
-    rows.forEach((rowState, i) => {
-      const group = groupList[i];
-      const digit = rowState.tier ? SKILL_TIER_DIGIT[rowState.tier] : '';
-      group.skills.forEach((skillKey) => {
-        const { nameSpan, tierSup } = skillRefs[skillKey];
-        tierSup.textContent = digit;
-        nameSpan.classList.toggle('priority-conflict', rowState.conflict);
-      });
+function refreshSkillPriorities() {
+  const { rows } = skillPriorityState(character);
+  rows.forEach((rowState, i) => {
+    const group = skillGroupList[i];
+    const digit = rowState.tier ? SKILL_TIER_DIGIT[rowState.tier] : '';
+    group.skills.forEach((skillKey) => {
+      const { nameSpan, tierSup } = skillRefs[skillKey];
+      tierSup.textContent = digit;
+      nameSpan.classList.toggle('priority-conflict', rowState.conflict);
     });
-    updateSkillsHeaderText(rows);
-  }
-
-  updateSkillPriorities();
+  });
+  updateSkillsHeaderText(rows);
 }
 
 /* ---------- Rated lists (Merits / Endowments) ---------- */
 
-function renderRatedListInto(container, list, rerender) {
+function renderRatedListInto(container, list, rerender, onChange) {
   clearEl(container);
   list.forEach((row, idx) => {
     const rowEl = document.createElement('div');
@@ -346,6 +347,7 @@ function renderRatedListInto(container, list, rerender) {
       list.splice(idx, 1);
       setDirty(true);
       rerender();
+      if (onChange) onChange();
     });
 
     rowEl.appendChild(nameInput);
@@ -360,17 +362,25 @@ function renderRatedListInto(container, list, rerender) {
       setValue: (v) => {
         row.dots = v;
         setDirty(true);
+        if (onChange) onChange();
       }
     });
   });
 }
 
 function renderMerits() {
-  renderRatedListInto(document.getElementById('merits-list'), character.merits, renderMerits);
+  renderRatedListInto(document.getElementById('merits-list'), character.merits, renderMerits, refreshAllValidation);
 }
 
 function renderEndowments() {
   renderRatedListInto(document.getElementById('endowments-list'), character.endowments, renderEndowments);
+}
+
+function refreshMeritValidation() {
+  const container = document.getElementById('merits-list');
+  if (!container) return;
+  const { meritExcess, xpCovers } = computeExperienceState(character);
+  container.classList.toggle('priority-conflict', meritExcess > 0 && !xpCovers);
 }
 
 /* ---------- Line lists (free text lines) ---------- */
@@ -459,8 +469,23 @@ function renderIntegrity() {
     setValue: (v) => {
       character.integrity = v;
       setDirty(true);
+      refreshAllValidation();
     }
   });
+}
+
+function refreshIntegrityValidation() {
+  const container = document.getElementById('integrity-ladder');
+  if (!container) return;
+  const { integrityExcess, xpCovers } = computeExperienceState(character);
+  container.classList.toggle('priority-conflict', integrityExcess > 0 && !xpCovers);
+}
+
+function refreshAllValidation() {
+  refreshAttributePriorities();
+  refreshSkillPriorities();
+  refreshMeritValidation();
+  refreshIntegrityValidation();
 }
 
 function renderBeats() {
@@ -578,6 +603,9 @@ function bindStaticFields() {
     el.oninput = () => {
       setPath(character, path, el.type === 'number' ? Number(el.value) : el.value);
       setDirty(true);
+      // Experience is a shared pool every validation rule reads from, so
+      // changing it can flip whether XP covers everyone's overspend.
+      if (path === 'experience') refreshAllValidation();
     };
   });
 }
@@ -601,6 +629,7 @@ function renderAll() {
   renderEquipment();
   renderCombat();
   updateFileStatus();
+  refreshAllValidation();
 }
 
 function handleNew() {
