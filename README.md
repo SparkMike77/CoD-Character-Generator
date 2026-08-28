@@ -14,6 +14,10 @@ Game mechanics (dice pools, chances, splat-specific rules, etc.) are being layer
 
 Electron (HTML/CSS/JS), packaged to a Windows executable via `electron-builder`.
 
+## Download
+
+Grab the latest Windows installer from the [Releases page](https://github.com/SparkMike77/CoD-Character-Generator/releases/latest) — no build step required.
+
 ## Development
 
 ```
