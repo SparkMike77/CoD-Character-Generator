@@ -75,30 +75,46 @@ function computeRawExcess(spentByGroup, [primaryBudget, secondaryBudget, tertiar
   });
 }
 
-// Pass 2: combine the raw per-group results with whether Experience covers
-// ALL of the character's excess spending everywhere (Attributes, Skills,
-// Merits, Specialties, Integrity combined - see computeExperienceState). A
-// rule-triggered group still counts as its rule's tier when XP covers it
-// (it validly bought the overage), just without the conflict flag; a tied
+// The tier a row's spending is pointing at, ignoring Experience entirely -
+// a rule-triggered row unambiguously identifies its target tier (over
+// budget or not), so only a genuine tie is truly unresolvable. Used both
+// to finalize Attribute display (below) and, via attributesRawlyResolved,
+// to gate the Skill mechanic - deliberately XP-independent so computing
+// "are Attributes resolved" never has to ask "does XP cover them," which
+// would be circular (XP coverage is a total across Attributes AND Skills).
+function computeRawTiers(rawRows, spentByGroup, [primaryBudget, secondaryBudget]) {
+  return rawRows.map((r, i) => {
+    if (r.tied) return null;
+    if (r.rule) return r.rule;
+    const others = spentByGroup.filter((_, j) => j !== i);
+    if (r.spent === primaryBudget) return 'primary';
+    if (r.spent === secondaryBudget) return 'secondary';
+    if (others.includes(primaryBudget) && others.includes(secondaryBudget)) return 'tertiary';
+    return null;
+  });
+}
+
+// Combines the raw per-group results with whether Experience covers ALL of
+// the character's excess spending everywhere (Attributes, Skills, Merits,
+// Specialties, Integrity combined - see computeExperienceState). A
+// rule-triggered group still shows its target tier when XP covers it (it
+// validly bought the overage), just without the conflict flag; a tied
 // group is always a conflict, XP or not.
-function finalizePriorityRows(rawRows, [primaryBudget, secondaryBudget], xpCoversAllExcess) {
+function finalizePriorityRows(rawRows, budgets, xpCoversAllExcess) {
   const spentByGroup = rawRows.map((r) => r.spent);
+  const rawTiers = computeRawTiers(rawRows, spentByGroup, budgets);
 
   return rawRows.map((r, i) => {
     const conflict = r.tied || (r.rule !== null && !xpCoversAllExcess);
-    let tier = null;
-    if (!conflict) {
-      if (r.rule) {
-        tier = r.rule;
-      } else {
-        const others = spentByGroup.filter((_, j) => j !== i);
-        if (r.spent === primaryBudget) tier = 'primary';
-        else if (r.spent === secondaryBudget) tier = 'secondary';
-        else if (others.includes(primaryBudget) && others.includes(secondaryBudget)) tier = 'tertiary';
-      }
-    }
-    return { spent: r.spent, tier, conflict };
+    return { spent: r.spent, tier: conflict ? null : rawTiers[i], conflict };
   });
+}
+
+function attributesRawlyResolved(character) {
+  const spentByGroup = ATTRIBUTE_GROUPS.map((group) => attributePointsSpent(character, group.attributes));
+  const rawRows = computeRawExcess(spentByGroup, ATTRIBUTE_PRIORITY_BUDGETS);
+  const rawTiers = computeRawTiers(rawRows, spentByGroup, ATTRIBUTE_PRIORITY_BUDGETS);
+  return rawTiers.every((t) => t !== null);
 }
 
 const ATTRIBUTE_PRIORITY_BUDGETS = [5, 4, 3];
@@ -139,12 +155,17 @@ const SKILL_GROUPS = {
   }
 };
 
-// Skill point-buy priorities: unlike Attributes, Skills start at 0 (no free
-// dot), so every dot counts as spent. Same Primary/Secondary/Tertiary
-// mechanic as Attributes, just applied to the Mental/Physical/Social
-// categories with the Skill budgets (11/7/4) instead of the Attribute
-// budgets (5/4/3).
+// Skill category priorities: unlike Attributes, this is NOT rank-derived
+// from spending. As soon as all three Attribute rows have a resolved tier
+// (any valid combination - Skills don't care which Attribute row got
+// which), Skills lock to a fixed mapping - Mental=Primary(11),
+// Physical=Secondary(7), Social=Tertiary(4) - visible immediately via the
+// superscripts and header countdown, before a single skill dot is spent.
+// If Attributes later change and stop being fully resolved (a new tie,
+// an unassigned row), Skills drop back to unassigned too. Skills start at
+// 0 (no free dot), so every dot counts as spent.
 const SKILL_CATEGORY_BUDGETS = [11, 7, 4];
+const SKILL_FIXED_TIERS = ['primary', 'secondary', 'tertiary'];
 
 function skillPointsSpent(character, skillKeys) {
   return skillKeys.reduce((sum, key) => sum + character.skills[key], 0);
@@ -153,14 +174,23 @@ function skillPointsSpent(character, skillKeys) {
 function skillPriorityState(character) {
   const groups = Object.values(SKILL_GROUPS);
   const spentByGroup = groups.map((group) => skillPointsSpent(character, group.skills));
-  const rawRows = computeRawExcess(spentByGroup, SKILL_CATEGORY_BUDGETS);
-  const { xpCovers } = computeExperienceState(character);
-  const finalRows = finalizePriorityRows(rawRows, SKILL_CATEGORY_BUDGETS, xpCovers);
+  const attributesResolved = attributesRawlyResolved(character);
 
-  const rows = finalRows.map((r, i) => ({ ...r, group: groups[i] }));
+  if (!attributesResolved) {
+    const rows = groups.map((group, i) => ({ group, spent: spentByGroup[i], tier: null, conflict: false, budget: null }));
+    return { rows, hasConflict: false, attributesResolved };
+  }
+
+  const { xpCovers } = computeExperienceState(character);
+  const rows = groups.map((group, i) => {
+    const budget = SKILL_CATEGORY_BUDGETS[i];
+    const spent = spentByGroup[i];
+    const conflict = spent > budget && !xpCovers;
+    return { group, spent, tier: SKILL_FIXED_TIERS[i], conflict, budget };
+  });
   const hasConflict = rows.some((r) => r.conflict);
 
-  return { rows, hasConflict };
+  return { rows, hasConflict, attributesResolved };
 }
 
 // Experience: buys extra dots/specialties above each domain's free budget.
@@ -188,10 +218,20 @@ const INTEGRITY_BASE = 7; // "Starting Integrity = 7"
 function computeExperienceState(character) {
   const attrSpentByGroup = ATTRIBUTE_GROUPS.map((group) => attributePointsSpent(character, group.attributes));
   const attrRaw = computeRawExcess(attrSpentByGroup, ATTRIBUTE_PRIORITY_BUDGETS);
+  const attrExcessDots = attrRaw.reduce((sum, r) => sum + r.excessDots, 0);
 
-  const skillGroups = Object.values(SKILL_GROUPS);
-  const skillSpentByGroup = skillGroups.map((group) => skillPointsSpent(character, group.skills));
-  const skillRaw = computeRawExcess(skillSpentByGroup, SKILL_CATEGORY_BUDGETS);
+  // Skill budgets only exist once Attributes are resolved (see
+  // skillPriorityState) - before that there's nothing defined to be over,
+  // so no XP is required for Skills yet regardless of dots spent.
+  const attributesResolved = attributesRawlyResolved(character);
+  let skillExcessDots = 0;
+  if (attributesResolved) {
+    const skillGroups = Object.values(SKILL_GROUPS);
+    skillGroups.forEach((group, i) => {
+      const spent = skillPointsSpent(character, group.skills);
+      skillExcessDots += Math.max(0, spent - SKILL_CATEGORY_BUDGETS[i]);
+    });
+  }
 
   const meritDotsTotal = character.merits.reduce((sum, m) => sum + m.dots, 0);
   const meritExcess = Math.max(0, meritDotsTotal - MERIT_FREE_DOTS);
@@ -199,9 +239,6 @@ function computeExperienceState(character) {
   const specialtyExcess = Math.max(0, character.specialties.length - SPECIALTY_FREE_COUNT);
 
   const integrityExcess = Math.max(0, character.integrity - INTEGRITY_BASE);
-
-  const attrExcessDots = attrRaw.reduce((sum, r) => sum + r.excessDots, 0);
-  const skillExcessDots = skillRaw.reduce((sum, r) => sum + r.excessDots, 0);
 
   const totalRequiredXP =
     attrExcessDots * XP_COSTS.attributeDot +

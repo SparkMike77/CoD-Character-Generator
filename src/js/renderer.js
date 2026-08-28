@@ -213,14 +213,18 @@ function setSpecialty(skillKey, value) {
 
 const SKILL_TIER_DIGIT = { primary: '1', secondary: '2', tertiary: '3' };
 
-function updateSkillsHeaderText(rows) {
+function updateSkillsHeaderText(rows, attributesResolved) {
   const el = document.getElementById('skills-total');
   if (!el) return;
-  const byTier = { primary: 0, secondary: 0, tertiary: 0 };
+  if (!attributesResolved) {
+    el.textContent = 'Assign Attribute priorities to unlock Skill budgets';
+    return;
+  }
+  const remaining = { primary: 0, secondary: 0, tertiary: 0 };
   rows.forEach((row) => {
-    if (row.tier) byTier[row.tier] = row.spent;
+    remaining[row.tier] = Math.max(0, row.budget - row.spent);
   });
-  el.textContent = `P: ${byTier.primary}   S: ${byTier.secondary}   T: ${byTier.tertiary}`;
+  el.textContent = `P: ${remaining.primary}   S: ${remaining.secondary}   T: ${remaining.tertiary}`;
 }
 
 function renderSkills() {
@@ -306,7 +310,7 @@ function renderSkills() {
 }
 
 function refreshSkillPriorities() {
-  const { rows } = skillPriorityState(character);
+  const { rows, attributesResolved } = skillPriorityState(character);
   rows.forEach((rowState, i) => {
     const group = skillGroupList[i];
     const digit = rowState.tier ? SKILL_TIER_DIGIT[rowState.tier] : '';
@@ -316,7 +320,7 @@ function refreshSkillPriorities() {
       nameSpan.classList.toggle('priority-conflict', rowState.conflict);
     });
   });
-  updateSkillsHeaderText(rows);
+  updateSkillsHeaderText(rows, attributesResolved);
 }
 
 /* ---------- Rated lists (Merits / Endowments) ---------- */
