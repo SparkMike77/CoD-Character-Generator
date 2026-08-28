@@ -30,7 +30,7 @@
       "target": "nsis"
     },
     "directories": {
-      "output": "release"
+      "output": "../release/gmscreen"
     }
   },
   "allowScripts": {

@@ -37,4 +37,4 @@ Opens a window showing the session name (editable), the current PIN, and how man
 npm run dist
 ```
 
-Output goes to `release/`.
+Output goes to `../release/gmscreen/` (the shared `release/` folder at the repo root, alongside the client's own installer — see the root [README](../README.md) for building both apps at once).

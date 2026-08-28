@@ -9,7 +9,8 @@
   "private": true,
   "scripts": {
     "start": "node scripts/start.js",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "dist:all": "npm run dist && npm --prefix gmscreen install && npm --prefix gmscreen run dist"
   },
   "devDependencies": {
     "electron": "^31.3.1",

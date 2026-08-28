@@ -15,7 +15,7 @@ Game mechanics (dice pools, chances, splat-specific rules, etc.) are being layer
 This repo hosts two apps that will eventually talk to each other:
 
 - **Client** (this directory, root `package.json`) — CoD Character Manager, the player-facing Electron app.
-- **[gmscreen/](gmscreen/)** — GMScreen, the GM-facing server. It will hand the client options and configuration data, and give the GM an interface for planning and running sessions. Scaffolding only for now — see [gmscreen/README.md](gmscreen/README.md).
+- **[gmscreen/](gmscreen/)** — GMScreen, the GM-facing server. It will hand the client options and configuration data, and give the GM an interface for planning and running sessions. LAN discovery and PIN-gated pairing with the client are working; the actual session-planning UI isn't built yet — see [gmscreen/README.md](gmscreen/README.md).
 
 ## Tech stack
 
@@ -38,4 +38,12 @@ npm start
 npm run dist
 ```
 
-Output goes to `release/`.
+Builds just this client. Output goes to `release/`.
+
+To build both apps at once:
+
+```
+npm run dist:all
+```
+
+Installs GMScreen's dependencies if needed and builds both. The client's installer lands in `release/`, GMScreen's in `release/gmscreen/` (kept in a subfolder so the two builds' `win-unpacked/` output and metadata files don't collide).
