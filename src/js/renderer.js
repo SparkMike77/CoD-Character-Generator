@@ -615,6 +615,144 @@ function bindStaticFields() {
   });
 }
 
+/* ---------- Campaign (Chronicle / Species) ---------- */
+
+let knownCampaigns = []; // [{ campaignId, chronicle, version, isCustom }]
+
+function renderChronicleOptions() {
+  const select = document.getElementById('chronicle-select');
+  clearEl(select);
+
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '— None —';
+  select.appendChild(blank);
+
+  knownCampaigns.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.campaignId;
+    opt.textContent = c.isCustom ? `${c.chronicle} (Custom)` : c.chronicle;
+    select.appendChild(opt);
+  });
+
+  if (character.campaignId && !knownCampaigns.some((c) => c.campaignId === character.campaignId)) {
+    const missing = document.createElement('option');
+    missing.value = character.campaignId;
+    missing.textContent = `${character.meta.chronicle || 'Unknown Chronicle'} (unavailable)`;
+    missing.disabled = true;
+    select.appendChild(missing);
+  }
+
+  const customOpt = document.createElement('option');
+  customOpt.value = '__custom__';
+  customOpt.textContent = '+ New Custom Campaign...';
+  select.appendChild(customOpt);
+
+  select.value = character.campaignId || '';
+}
+
+// speciesList: null means no Chronicle is resolved yet (nothing to pick
+// from); an array (possibly empty) means a Chronicle IS resolved.
+function renderSpeciesOptions(speciesList) {
+  const select = document.getElementById('species-select');
+  clearEl(select);
+
+  if (speciesList === null || speciesList.length === 0) {
+    select.disabled = true;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = speciesList === null ? 'Select a Chronicle first' : 'No species defined for this Chronicle';
+    select.appendChild(opt);
+    return;
+  }
+
+  select.disabled = false;
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '— None —';
+  select.appendChild(blank);
+
+  speciesList.forEach((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+
+  select.value = character.meta.species || '';
+}
+
+// Re-pulls the known-campaigns list and, if the character is tied to one,
+// its full record (for the Species options) - used at startup and after
+// New/Open, since campaignId only ever comes from character data at that
+// point, never from user interaction.
+async function refreshCampaignUI() {
+  if (!window.codApi) return;
+  knownCampaigns = await window.codApi.listCampaigns();
+  renderChronicleOptions();
+
+  if (!character.campaignId) {
+    renderSpeciesOptions(null);
+    return;
+  }
+  const record = await window.codApi.getCampaign(character.campaignId);
+  if (record) {
+    character.meta.chronicle = record.chronicle;
+    renderSpeciesOptions(record.speciesList);
+  } else {
+    renderSpeciesOptions(null);
+  }
+}
+
+async function handleChronicleChange(e) {
+  const value = e.target.value;
+
+  if (value === '__custom__') {
+    const created = await window.codApi.createCustomCampaign();
+    knownCampaigns.push({
+      campaignId: created.campaignId,
+      chronicle: created.chronicle,
+      version: created.version,
+      isCustom: true
+    });
+    character.campaignId = created.campaignId;
+    character.meta.chronicle = created.chronicle;
+    character.meta.species = '';
+    setDirty(true);
+    renderChronicleOptions();
+    renderSpeciesOptions(created.speciesList);
+    return;
+  }
+
+  character.campaignId = value || null;
+  character.meta.species = '';
+  setDirty(true);
+
+  if (!value) {
+    character.meta.chronicle = '';
+    renderSpeciesOptions(null);
+    return;
+  }
+
+  const record = await window.codApi.getCampaign(value);
+  if (record) {
+    character.meta.chronicle = record.chronicle;
+    renderSpeciesOptions(record.speciesList);
+  } else {
+    renderSpeciesOptions(null);
+  }
+}
+
+function handleSpeciesChange(e) {
+  character.meta.species = e.target.value;
+  setDirty(true);
+}
+
+function initCampaignFields() {
+  document.getElementById('chronicle-select').addEventListener('change', handleChronicleChange);
+  document.getElementById('species-select').addEventListener('change', handleSpeciesChange);
+}
+
 /* ---------- Top-level render / lifecycle ---------- */
 
 function renderAll() {
@@ -637,12 +775,13 @@ function renderAll() {
   refreshAllValidation();
 }
 
-function handleNew() {
+async function handleNew() {
   if (dirty && !window.confirm('Discard unsaved changes and start a new character?')) return;
   character = defaultCharacter();
   currentFilePath = null;
   setDirty(false);
   renderAll();
+  await refreshCampaignUI();
 }
 
 async function handleOpen() {
@@ -654,6 +793,7 @@ async function handleOpen() {
   currentFilePath = result.filePath;
   setDirty(false);
   renderAll();
+  await refreshCampaignUI();
 }
 
 const SAVE_BLOCKED_MESSAGE =
@@ -1091,4 +1231,6 @@ initAboutModal();
 initSizeControl();
 initRulesPanes();
 initGmSessions();
+initCampaignFields();
 renderAll();
+refreshCampaignUI();

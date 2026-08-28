@@ -1,15 +1,34 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
+const crypto = require('crypto');
 const fs = require('fs/promises');
 const { GmServer } = require('./gm-server');
 const { CAMPAIGN_TEMPLATE } = require('./campaign-template');
+const { parseCampaignFile, serializeCampaignFile, extractChronicleName } = require('./campaign-file');
 
 let mainWindow;
 let gmServer;
-let currentCampaign = { filePath: null, content: '' };
+// filePath/campaignId/version/body: campaignId+version travel inside the
+// file itself (see campaign-file.js) so GMScreen can tell a paired client
+// whether its locally-stored copy is stale - see GET /campaign.
+let currentCampaign = { filePath: null, campaignId: null, version: null, body: '' };
 
 function sendMenuAction(action) {
   if (mainWindow) mainWindow.webContents.send('menu-action', action);
+}
+
+function publishCampaign() {
+  if (!gmServer) return;
+  if (!currentCampaign.filePath) {
+    gmServer.setCampaign(null);
+    return;
+  }
+  gmServer.setCampaign({
+    campaignId: currentCampaign.campaignId,
+    version: currentCampaign.version,
+    chronicle: extractChronicleName(currentCampaign.body),
+    body: currentCampaign.body
+  });
 }
 
 function handleNewSession() {
@@ -18,7 +37,8 @@ function handleNewSession() {
     return;
   }
   // Session-running itself isn't designed/built yet - this is just the
-  // "a Campaign has to be loaded first" guard for now.
+  // "a Campaign has to be loaded first" guard for now. Paired clients pick
+  // up the current campaign as soon as they (re)connect, via GET /campaign.
 }
 
 function buildMenu() {
@@ -121,7 +141,7 @@ ipcMain.handle('session:rotate-pin', () => {
   return gmServer.getState();
 });
 
-ipcMain.handle('campaign:get', () => currentCampaign);
+ipcMain.handle('campaign:get', () => ({ filePath: currentCampaign.filePath, content: currentCampaign.body }));
 
 ipcMain.handle('campaign:new', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
@@ -131,9 +151,12 @@ ipcMain.handle('campaign:new', async () => {
   });
   if (result.canceled || !result.filePath) return null;
 
-  await fs.writeFile(result.filePath, CAMPAIGN_TEMPLATE, 'utf-8');
-  currentCampaign = { filePath: result.filePath, content: CAMPAIGN_TEMPLATE };
-  return currentCampaign;
+  const campaignId = crypto.randomUUID();
+  const version = 1;
+  await fs.writeFile(result.filePath, serializeCampaignFile({ campaignId, version, body: CAMPAIGN_TEMPLATE }), 'utf-8');
+  currentCampaign = { filePath: result.filePath, campaignId, version, body: CAMPAIGN_TEMPLATE };
+  publishCampaign();
+  return { filePath: result.filePath, content: CAMPAIGN_TEMPLATE };
 });
 
 ipcMain.handle('campaign:open', async () => {
@@ -145,14 +168,28 @@ ipcMain.handle('campaign:open', async () => {
   if (result.canceled || result.filePaths.length === 0) return null;
 
   const filePath = result.filePaths[0];
-  const content = await fs.readFile(filePath, 'utf-8');
-  currentCampaign = { filePath, content };
-  return currentCampaign;
+  const raw = await fs.readFile(filePath, 'utf-8');
+  const parsed = parseCampaignFile(raw);
+  // A plain .md with no frontmatter (hand-written, or from before versioning
+  // existed) gets adopted: treated as version 1 of a brand-new campaign, so
+  // it gains proper frontmatter the next time it's saved.
+  const campaignId = parsed.campaignId || crypto.randomUUID();
+  const version = parsed.version || 1;
+  currentCampaign = { filePath, campaignId, version, body: parsed.body };
+  publishCampaign();
+  return { filePath, content: parsed.body };
 });
 
 ipcMain.handle('campaign:save', async (_event, content) => {
   if (!currentCampaign.filePath) return { ok: false, error: 'No campaign file is open.' };
-  await fs.writeFile(currentCampaign.filePath, content, 'utf-8');
-  currentCampaign = { filePath: currentCampaign.filePath, content };
+  const version = (currentCampaign.version || 0) + 1;
+  const campaignId = currentCampaign.campaignId || crypto.randomUUID();
+  await fs.writeFile(
+    currentCampaign.filePath,
+    serializeCampaignFile({ campaignId, version, body: content }),
+    'utf-8'
+  );
+  currentCampaign = { filePath: currentCampaign.filePath, campaignId, version, body: content };
+  publishCampaign();
   return { ok: true };
 });

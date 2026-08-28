@@ -53,9 +53,10 @@ function requestJson(host, port, method, urlPath, { body, token } = {}) {
 // setup, so the main process owns both the mDNS browser and the pairing HTTP
 // calls; the renderer only ever sees normalized IPC events/results.
 class GmScreenClient extends EventEmitter {
-  constructor({ storagePath }) {
+  constructor({ storagePath, campaignStore }) {
     super();
     this.storagePath = storagePath;
+    this.campaignStore = campaignStore;
     this.bonjour = null;
     this.browser = null;
     this.live = new Map(); // id -> { id, name, host, port }
@@ -110,6 +111,20 @@ class GmScreenClient extends EventEmitter {
     return this._loadConnections();
   }
 
+  // Fire-and-forget: a missing/unreachable campaign shouldn't block pairing
+  // or reconnection, so failures here are silent (the client just keeps
+  // whatever campaign copy - if any - it already had locally).
+  async _fetchAndStoreCampaign(host, port, token, sourceGmScreenId) {
+    const { status, data } = await requestJson(host, port, 'GET', '/campaign', { token });
+    if (status !== 200) return;
+    await this.campaignStore.upsert({
+      campaignId: data.campaignId,
+      version: data.version,
+      body: data.body,
+      sourceGmScreenId
+    });
+  }
+
   async pair({ id, host, port, pin }) {
     const { status, data, error } = await requestJson(host, port, 'POST', '/pair', { body: { pin } });
     if (error) return { ok: false, error: 'Could not reach GMScreen.' };
@@ -117,6 +132,7 @@ class GmScreenClient extends EventEmitter {
       const connections = await this._loadConnections();
       connections[id] = { id, name: data.name, host, port, token: data.token, pairedAt: Date.now() };
       await this._saveConnections(connections);
+      await this._fetchAndStoreCampaign(host, port, data.token, id);
       return { ok: true, name: data.name };
     }
     if (status === 429) return { ok: false, error: data.error || 'Too many attempts. Try again shortly.' };
@@ -131,7 +147,10 @@ class GmScreenClient extends EventEmitter {
     const { status } = await requestJson(host || entry.host, port || entry.port, 'GET', '/whoami', {
       token: entry.token
     });
-    if (status === 200) return { ok: true, name: entry.name };
+    if (status === 200) {
+      await this._fetchAndStoreCampaign(host || entry.host, port || entry.port, entry.token, id);
+      return { ok: true, name: entry.name };
+    }
 
     delete connections[id];
     await this._saveConnections(connections);

@@ -67,9 +67,14 @@ class GmServer extends EventEmitter {
     this.pin = generatePin();
     this.tokens = new Map(); // token -> { pairedAt }
     this.attempts = new Map(); // remoteAddress -> { count, lockUntil }
+    this.campaign = null; // { campaignId, version, chronicle, body } | null
     this.bonjour = null;
     this.mdnsService = null;
     this.httpServer = null;
+  }
+
+  setCampaign(campaign) {
+    this.campaign = campaign;
   }
 
   getState() {
@@ -145,6 +150,11 @@ class GmServer extends EventEmitter {
     this.attempts.set(remoteAddress, entry);
   }
 
+  _bearerToken(req) {
+    const authHeader = req.headers.authorization || '';
+    return authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  }
+
   async _handleRequest(req, res) {
     try {
       if (req.method === 'GET' && req.url === '/session') {
@@ -169,10 +179,16 @@ class GmServer extends EventEmitter {
       }
 
       if (req.method === 'GET' && req.url === '/whoami') {
-        const authHeader = req.headers.authorization || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        const token = this._bearerToken(req);
         if (!token || !this.tokens.has(token)) return sendJson(res, 401, { error: 'Invalid token' });
         return sendJson(res, 200, { id: this.instanceId, name: this.sessionName });
+      }
+
+      if (req.method === 'GET' && req.url === '/campaign') {
+        const token = this._bearerToken(req);
+        if (!token || !this.tokens.has(token)) return sendJson(res, 401, { error: 'Invalid token' });
+        if (!this.campaign) return sendJson(res, 404, { error: 'No campaign loaded' });
+        return sendJson(res, 200, this.campaign);
       }
 
       sendJson(res, 404, { error: 'Not found' });

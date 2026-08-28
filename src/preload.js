@@ -17,5 +17,9 @@ contextBridge.exposeInMainWorld('codApi', {
   listKnownGmScreens: () => ipcRenderer.invoke('gmscreen:known'),
   pairGmScreen: (id, host, port, pin) => ipcRenderer.invoke('gmscreen:pair', { id, host, port, pin }),
   checkGmScreen: (id, host, port) => ipcRenderer.invoke('gmscreen:check', { id, host, port }),
-  forgetGmScreen: (id) => ipcRenderer.invoke('gmscreen:forget', id)
+  forgetGmScreen: (id) => ipcRenderer.invoke('gmscreen:forget', id),
+
+  listCampaigns: () => ipcRenderer.invoke('campaigns:list'),
+  getCampaign: (campaignId) => ipcRenderer.invoke('campaigns:get', campaignId),
+  createCustomCampaign: () => ipcRenderer.invoke('campaigns:createCustom')
 });

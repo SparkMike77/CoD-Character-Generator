@@ -2,9 +2,11 @@ const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const { GmScreenClient } = require('./js/gmscreen-client');
+const { CampaignStore } = require('./js/campaign-store');
 
 let mainWindow;
 let gmScreenClient;
+let campaignStore;
 
 function sendMenuAction(action) {
   if (mainWindow) mainWindow.webContents.send('menu-action', action);
@@ -78,8 +80,13 @@ app.whenReady().then(() => {
   buildMenu();
   createWindow();
 
+  campaignStore = new CampaignStore({
+    storagePath: path.join(app.getPath('userData'), 'campaigns.json')
+  });
+
   gmScreenClient = new GmScreenClient({
-    storagePath: path.join(app.getPath('userData'), 'gm-connections.json')
+    storagePath: path.join(app.getPath('userData'), 'gm-connections.json'),
+    campaignStore
   }).start();
   gmScreenClient.on('up', (info) => {
     if (mainWindow) mainWindow.webContents.send('gmscreen:up', info);
@@ -131,6 +138,10 @@ ipcMain.handle('gmscreen:known', () => gmScreenClient.listKnown());
 ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenClient.pair({ id, host, port, pin }));
 ipcMain.handle('gmscreen:check', (_event, { id, host, port }) => gmScreenClient.check({ id, host, port }));
 ipcMain.handle('gmscreen:forget', (_event, id) => gmScreenClient.forget(id));
+
+ipcMain.handle('campaigns:list', () => campaignStore.list());
+ipcMain.handle('campaigns:get', (_event, campaignId) => campaignStore.get(campaignId));
+ipcMain.handle('campaigns:createCustom', () => campaignStore.createCustom());
 
 ipcMain.handle('character:save', async (_event, { data, filePath }) => {
   let targetPath = filePath;

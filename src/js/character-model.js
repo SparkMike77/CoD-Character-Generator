@@ -310,10 +310,11 @@ function defaultCharacter() {
 
   return {
     schemaVersion: 1,
+    campaignId: null,
     meta: {
       name: '', player: '', chronicle: '',
       virtue: '', vice: '', concept: '',
-      cell: '', compact: '', conspiracy: ''
+      cell: '', compact: '', conspiracy: '', species: ''
     },
     attributes,
     skills,
