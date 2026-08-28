@@ -15,6 +15,10 @@
       <button type="button" id="btn-save">Save</button>
       <button type="button" id="btn-save-as">Save As...</button>
       <span id="file-status" class="file-status">Unsaved character</span>
+      <button type="button" id="btn-gm-sessions" class="gm-sessions-btn">
+        GM Sessions
+        <span id="gm-sessions-badge" class="gm-sessions-badge hidden">0</span>
+      </button>
     </div>
   </header>
 
@@ -316,6 +320,15 @@
         <tr><td>Attribute dot</td><td>4 Experience per dot</td></tr>
         <tr><td>Integrity dot</td><td>2 Experience per dot</td></tr>
       </table>
+    </div>
+  </div>
+
+  <div id="gmscreen-modal" class="modal-overlay hidden">
+    <div class="modal-box gmscreen-modal-box">
+      <button type="button" id="gmscreen-modal-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">GM Sessions</h3>
+      <p id="gmscreen-empty" class="hint">No GM sessions found on this network yet.</p>
+      <div id="gmscreen-list" class="gmscreen-list"></div>
     </div>
   </div>
 

@@ -1,12 +1,39 @@
 {
   "name": "gmscreen",
+  "productName": "GMScreen",
   "version": "0.0.1",
-  "description": "GM-facing server for CoD Character Manager: session configuration, options, and the GM's planning/running interface.",
-  "main": "src/server.js",
+  "description": "GM-facing server for CoD Character Manager: advertises itself on the LAN, PIN-gates pairing, and gives the GM an interface for session configuration and (eventually) running the game.",
+  "main": "src/main.js",
   "author": "SparkMike77",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node scripts/start.js",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "bonjour-service": "^1.4.4"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.sparkmike77.gmscreen",
+    "productName": "GMScreen",
+    "files": [
+      "src/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "directories": {
+      "output": "release"
+    }
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
   }
 }

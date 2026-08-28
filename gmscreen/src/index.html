@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+<title>GMScreen</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="app-toolbar">
+    <h1>GMScreen</h1>
+  </header>
+
+  <main>
+    <section class="block">
+      <h2>Session</h2>
+      <label class="session-name-field">
+        <span>Session Name</span>
+        <input type="text" id="session-name-input" />
+      </label>
+      <p class="hint">Shown to players when they discover this session on the network.</p>
+    </section>
+
+    <section class="block">
+      <h2>Pairing PIN</h2>
+      <p class="hint">Give this to your players. They'll enter it once in CoD Character Manager to connect.</p>
+      <div id="pin-display" class="pin-display"></div>
+      <button type="button" id="rotate-pin-btn" class="add-row-btn">Rotate PIN</button>
+    </section>
+
+    <section class="block">
+      <h2>Status</h2>
+      <div class="status-grid">
+        <div><span>Advertising as</span><output id="status-address"></output></div>
+        <div><span>Paired players</span><output id="status-paired"></output></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/renderer.js"></script>
+</body>
+</html>

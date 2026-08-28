@@ -1,0 +1,131 @@
+:root {
+  --bg: #f7f6f3;
+  --panel-bg: #ffffff;
+  --border: #c9c4ba;
+  --border-strong: #8a8478;
+  --text: #22201c;
+  --text-muted: #635d52;
+  --accent: #6b4f3b;
+  --accent-strong: #4a3627;
+}
+
+* { box-sizing: border-box; }
+input { min-width: 0; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+h1, h2 {
+  font-family: inherit;
+  font-weight: 600;
+  margin: 0 0 0.5em 0;
+  color: var(--accent-strong);
+}
+h1 { font-size: 18px; }
+h2 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--border-strong);
+  padding-bottom: 4px;
+}
+
+input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 8px;
+  width: 100%;
+}
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+main { padding: 16px; max-width: 440px; margin: 0 auto; }
+
+.block {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.session-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 6px 0 10px 0;
+}
+
+.pin-display {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pin-digit {
+  flex: 1 1 0;
+  text-align: center;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--bg);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 10px 0;
+}
+
+.add-row-btn {
+  border: 1px dashed var(--border-strong);
+  background: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+.add-row-btn:hover { color: var(--accent-strong); border-color: var(--accent-strong); }
+
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.status-grid > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+.status-grid span { color: var(--text-muted); }
+.status-grid output { font-weight: 600; color: var(--accent-strong); }

@@ -839,6 +839,201 @@ function initRulesPanes() {
   initRulesPane('campaign-rules');
 }
 
+/* ---------- GM Sessions (mDNS discovery + PIN pairing) ---------- */
+
+const gmSessions = new Map(); // id -> { id, name, host, port, status, error }
+let gmExpandedId = null;
+let gmPromptedIds = new Set();
+
+function gmUpdateBadge() {
+  const badge = document.getElementById('gm-sessions-badge');
+  const actionable = [...gmSessions.values()].filter((s) => s.status === 'needs-pin' || s.status === 'error').length;
+  badge.textContent = actionable;
+  badge.classList.toggle('hidden', actionable === 0);
+}
+
+function gmOpenModal() {
+  document.getElementById('gmscreen-modal').classList.remove('hidden');
+}
+function gmCloseModal() {
+  document.getElementById('gmscreen-modal').classList.add('hidden');
+  gmExpandedId = null;
+}
+
+function gmRenderList() {
+  const listEl = document.getElementById('gmscreen-list');
+  const emptyEl = document.getElementById('gmscreen-empty');
+  clearEl(listEl);
+
+  const sessions = [...gmSessions.values()];
+  emptyEl.classList.toggle('hidden', sessions.length > 0);
+
+  sessions.forEach((session) => {
+    const row = document.createElement('div');
+    row.className = 'gmscreen-row';
+
+    const main = document.createElement('div');
+    main.className = 'gmscreen-row-main';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'gmscreen-name';
+    nameEl.textContent = session.name;
+    const addrEl = document.createElement('span');
+    addrEl.className = 'gmscreen-address';
+    addrEl.textContent = `${session.host}:${session.port}`;
+    main.appendChild(nameEl);
+    main.appendChild(addrEl);
+    row.appendChild(main);
+
+    const action = document.createElement('div');
+    action.className = 'gmscreen-row-action';
+
+    if (session.status === 'checking' || session.status === 'pairing') {
+      const label = document.createElement('span');
+      label.className = 'hint';
+      label.textContent = session.status === 'checking' ? 'Checking...' : 'Connecting...';
+      action.appendChild(label);
+    } else if (session.status === 'connected') {
+      const label = document.createElement('span');
+      label.className = 'gmscreen-connected';
+      label.textContent = 'Connected';
+      const disconnectBtn = document.createElement('button');
+      disconnectBtn.type = 'button';
+      disconnectBtn.className = 'gmscreen-link-btn';
+      disconnectBtn.textContent = 'Disconnect';
+      disconnectBtn.addEventListener('click', async () => {
+        await window.codApi.forgetGmScreen(session.id);
+        session.status = 'needs-pin';
+        session.error = null;
+        gmRenderList();
+        gmUpdateBadge();
+      });
+      action.appendChild(label);
+      action.appendChild(disconnectBtn);
+    } else if (gmExpandedId === session.id) {
+      const pinInput = document.createElement('input');
+      pinInput.type = 'text';
+      pinInput.inputMode = 'numeric';
+      pinInput.maxLength = 6;
+      pinInput.placeholder = 'PIN';
+      pinInput.className = 'gmscreen-pin-input';
+
+      const submitBtn = document.createElement('button');
+      submitBtn.type = 'button';
+      submitBtn.className = 'add-row-btn';
+      submitBtn.textContent = 'Connect';
+      submitBtn.addEventListener('click', async () => {
+        const pin = pinInput.value.trim();
+        if (!pin) return;
+        session.status = 'pairing';
+        gmRenderList();
+        const result = await window.codApi.pairGmScreen(session.id, session.host, session.port, pin);
+        if (result.ok) {
+          session.status = 'connected';
+          session.name = result.name || session.name;
+          gmExpandedId = null;
+        } else {
+          session.status = 'error';
+          session.error = result.error;
+        }
+        gmRenderList();
+        gmUpdateBadge();
+      });
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'gmscreen-link-btn';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.addEventListener('click', () => {
+        gmExpandedId = null;
+        session.error = null;
+        gmRenderList();
+      });
+
+      action.appendChild(pinInput);
+      action.appendChild(submitBtn);
+      action.appendChild(cancelBtn);
+
+      if (session.error) {
+        const errEl = document.createElement('div');
+        errEl.className = 'gmscreen-error';
+        errEl.textContent = session.error;
+        row.appendChild(errEl);
+      }
+
+      pinInput.focus();
+    } else {
+      const connectBtn = document.createElement('button');
+      connectBtn.type = 'button';
+      connectBtn.className = 'add-row-btn';
+      connectBtn.textContent = session.status === 'error' ? 'Retry' : 'Connect';
+      connectBtn.addEventListener('click', () => {
+        gmExpandedId = session.id;
+        session.status = 'needs-pin';
+        gmRenderList();
+      });
+      action.appendChild(connectBtn);
+    }
+
+    row.appendChild(action);
+    listEl.appendChild(row);
+  });
+}
+
+async function gmHandleUp(info) {
+  const existing = gmSessions.get(info.id);
+  const session = existing || { ...info, status: 'unknown', error: null };
+  session.name = info.name;
+  session.host = info.host;
+  session.port = info.port;
+  gmSessions.set(info.id, session);
+
+  if (!existing) {
+    const known = await window.codApi.listKnownGmScreens();
+    if (known[info.id]) {
+      session.status = 'checking';
+      gmRenderList();
+      const result = await window.codApi.checkGmScreen(info.id, info.host, info.port);
+      session.status = result.ok ? 'connected' : 'needs-pin';
+    } else {
+      session.status = 'needs-pin';
+      if (!gmPromptedIds.has(info.id)) {
+        gmPromptedIds.add(info.id);
+        gmExpandedId = info.id;
+        gmOpenModal();
+      }
+    }
+  }
+
+  gmRenderList();
+  gmUpdateBadge();
+}
+
+function gmHandleDown(info) {
+  gmSessions.delete(info.id);
+  if (gmExpandedId === info.id) gmExpandedId = null;
+  gmRenderList();
+  gmUpdateBadge();
+}
+
+function initGmSessions() {
+  if (!window.codApi) return;
+
+  document.getElementById('btn-gm-sessions').addEventListener('click', gmOpenModal);
+  document.getElementById('gmscreen-modal-close').addEventListener('click', gmCloseModal);
+  document.getElementById('gmscreen-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('gmscreen-modal')) gmCloseModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('gmscreen-modal').classList.contains('hidden')) gmCloseModal();
+  });
+
+  window.codApi.onGmScreenUp(gmHandleUp);
+  window.codApi.onGmScreenDown(gmHandleDown);
+
+  gmRenderList();
+  gmUpdateBadge();
+}
+
 function openAttributeDetail(attrKey) {
   document.getElementById('attribute-detail-title').textContent = ATTRIBUTE_LABELS[attrKey];
   document.getElementById('attribute-detail-body').textContent = ATTRIBUTE_DESCRIPTIONS[attrKey];
@@ -871,4 +1066,5 @@ initBeatsInfoModal();
 initExperienceInfoModal();
 initSizeControl();
 initRulesPanes();
+initGmSessions();
 renderAll();

@@ -14,6 +14,7 @@
 
 * { box-sizing: border-box; }
 input, textarea, select { min-width: 0; }
+.hidden { display: none; }
 
 body {
   margin: 0;
@@ -106,6 +107,82 @@ button {
   font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* GM Sessions */
+.gm-sessions-btn {
+  position: relative;
+  margin-left: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--text);
+}
+.gm-sessions-btn:hover { background: #efece6; }
+.gm-sessions-badge {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 16px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.gm-sessions-badge.hidden { display: none; }
+
+.gmscreen-modal-box { max-width: 420px; }
+.gmscreen-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.gmscreen-row {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.gmscreen-row-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.gmscreen-name { font-weight: 600; color: var(--accent-strong); }
+.gmscreen-address { font-size: 11px; color: var(--text-muted); font-family: "Consolas", "Courier New", monospace; }
+.gmscreen-row-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gmscreen-connected {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2f7a3d;
+}
+.gmscreen-link-btn {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 0;
+}
+.gmscreen-link-btn:hover { color: var(--danger); }
+.gmscreen-pin-input {
+  width: 80px;
+  letter-spacing: 0.15em;
+  text-align: center;
+  font-family: "Consolas", "Courier New", monospace;
+}
+.gmscreen-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--danger);
 }
 
 /* Tabs */

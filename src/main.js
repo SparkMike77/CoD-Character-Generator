@@ -1,8 +1,10 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
+const { GmScreenClient } = require('./js/gmscreen-client');
 
 let mainWindow;
+let gmScreenClient;
 
 function sendMenuAction(action) {
   if (mainWindow) mainWindow.webContents.send('menu-action', action);
@@ -72,6 +74,16 @@ app.whenReady().then(() => {
   buildMenu();
   createWindow();
 
+  gmScreenClient = new GmScreenClient({
+    storagePath: path.join(app.getPath('userData'), 'gm-connections.json')
+  }).start();
+  gmScreenClient.on('up', (info) => {
+    if (mainWindow) mainWindow.webContents.send('gmscreen:up', info);
+  });
+  gmScreenClient.on('down', (info) => {
+    if (mainWindow) mainWindow.webContents.send('gmscreen:down', info);
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -79,6 +91,10 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('will-quit', () => {
+  if (gmScreenClient) gmScreenClient.stop();
 });
 
 ipcMain.handle('character:open', async () => {
@@ -106,6 +122,11 @@ ipcMain.handle('rules:openMarkdown', async () => {
   const content = await fs.readFile(filePath, 'utf-8');
   return { filePath, content };
 });
+
+ipcMain.handle('gmscreen:known', () => gmScreenClient.listKnown());
+ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenClient.pair({ id, host, port, pin }));
+ipcMain.handle('gmscreen:check', (_event, { id, host, port }) => gmScreenClient.check({ id, host, port }));
+ipcMain.handle('gmscreen:forget', (_event, id) => gmScreenClient.forget(id));
 
 ipcMain.handle('character:save', async (_event, { data, filePath }) => {
   let targetPath = filePath;
