@@ -249,6 +249,13 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
   flex: 1 1 auto;
   font-size: 13px;
 }
+.skill-row .skill-name.priority-conflict { color: var(--danger); }
+.skill-tier-marker {
+  font-size: 0.65em;
+  margin-left: 1px;
+  color: var(--text-muted);
+}
+.skill-name.priority-conflict .skill-tier-marker { color: var(--danger); }
 .skill-row .skill-specialty {
   width: 84px;
   font-size: 11px;

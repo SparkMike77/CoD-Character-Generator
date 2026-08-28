@@ -6,7 +6,8 @@ import {
   SKILL_LABELS,
   defaultCharacter,
   derivedStats,
-  attributePriorityState
+  attributePriorityState,
+  skillPriorityState
 } from './character-model.js';
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 
@@ -204,18 +205,30 @@ function setSpecialty(skillKey, value) {
   else character.specialties.push({ skill: skillKey, name: value });
 }
 
-function updateSkillsTotal() {
-  const totalEl = document.getElementById('skills-total');
-  if (!totalEl) return;
-  const total = Object.values(character.skills).reduce((sum, v) => sum + v, 0);
-  totalEl.textContent = `${total} dots spent`;
+const SKILL_TIER_DIGIT = { primary: '1', secondary: '2', tertiary: '3' };
+
+function updateSkillsHeaderText(rows) {
+  const el = document.getElementById('skills-total');
+  if (!el) return;
+  const byTier = { primary: 0, secondary: 0, tertiary: 0 };
+  rows.forEach((row) => {
+    if (row.tier) byTier[row.tier] = row.spent;
+  });
+  el.textContent = `P: ${byTier.primary}   S: ${byTier.secondary}   T: ${byTier.tertiary}`;
 }
 
 function renderSkills() {
   const container = document.getElementById('skills-columns');
   clearEl(container);
 
-  Object.values(SKILL_GROUPS).forEach((group) => {
+  const groupList = Object.values(SKILL_GROUPS);
+  // skillKey -> { nameSpan, tierSup }, filled in below, so
+  // updateSkillPriorities() can restyle every skill (not just the one whose
+  // dot was clicked) after each change - a category's tier/conflict state
+  // depends on all three categories' totals, not just its own.
+  const skillRefs = {};
+
+  groupList.forEach((group) => {
     const col = document.createElement('div');
     col.className = 'skill-column';
 
@@ -237,6 +250,11 @@ function renderSkills() {
       const nameSpan = document.createElement('span');
       nameSpan.className = 'skill-name';
       nameSpan.textContent = SKILL_LABELS[skillKey];
+
+      const tierSup = document.createElement('sup');
+      tierSup.className = 'skill-tier-marker';
+      nameSpan.appendChild(tierSup);
+      skillRefs[skillKey] = { nameSpan, tierSup };
 
       const dotsContainer = document.createElement('div');
 
@@ -275,7 +293,7 @@ function renderSkills() {
           character.skills[skillKey] = v;
           setDirty(true);
           renderDerived();
-          updateSkillsTotal();
+          updateSkillPriorities();
         }
       });
     });
@@ -283,7 +301,21 @@ function renderSkills() {
     container.appendChild(col);
   });
 
-  updateSkillsTotal();
+  function updateSkillPriorities() {
+    const { rows } = skillPriorityState(character);
+    rows.forEach((rowState, i) => {
+      const group = groupList[i];
+      const digit = rowState.tier ? SKILL_TIER_DIGIT[rowState.tier] : '';
+      group.skills.forEach((skillKey) => {
+        const { nameSpan, tierSup } = skillRefs[skillKey];
+        tierSup.textContent = digit;
+        nameSpan.classList.toggle('priority-conflict', rowState.conflict);
+      });
+    });
+    updateSkillsHeaderText(rows);
+  }
+
+  updateSkillPriorities();
 }
 
 /* ---------- Rated lists (Merits / Endowments) ---------- */

@@ -26,46 +26,61 @@ function attributePointsSpent(character, attributeKeys) {
   return attributeKeys.reduce((sum, key) => sum + (character.attributes[key] - 1), 0);
 }
 
-// Determines each row's Primary/Secondary/Tertiary tier from what's actually
-// been spent, and flags rows that violate one of the overspend validation
-// rules. A row's spent total of 0 is the untouched starting state, never a
-// violation on its own. A row is in error/conflict if:
-//   - it has more than 5 points spent (no row can ever exceed the Primary
-//     budget), or
-//   - another row already totals exactly 5 (has claimed Primary) and this
-//     row exceeds 4 (the max left for Secondary), or
-//   - another row totals 5 AND another totals 4 (Primary and Secondary both
-//     claimed) and this row exceeds 3 (the max left for Tertiary), or
-//   - it's tied with another row on the same nonzero point total (can't
+// Generic Primary/Secondary/Tertiary point-buy validation, shared by
+// Attributes (budgets 5/4/3, rows Power/Finesse/Resistance) and Skills
+// (budgets 11/7/4, categories Mental/Physical/Social). Which group holds
+// which tier is NOT fixed - it's determined by how many points the player
+// actually put into that group. A group's spent total of 0 is the
+// untouched starting state, never a violation on its own. A group is in
+// error/conflict if:
+//   - it exceeds the Primary budget outright (no group can ever go past
+//     that, regardless of what any other group has), or
+//   - another group already claimed exactly the Primary budget and this
+//     group exceeds the Secondary budget (the max left once Primary's
+//     taken), or
+//   - another group claimed the Primary budget AND another claimed the
+//     Secondary budget, and this group exceeds the Tertiary budget (the
+//     max left once both are taken), or
+//   - it's tied with another group on the same nonzero point total (can't
 //     tell which of them actually holds that priority).
-function attributePriorityState(character) {
-  const spentByGroup = ATTRIBUTE_GROUPS.map((group) => attributePointsSpent(character, group.attributes));
-
+function computePriorityState(spentByGroup, [primaryBudget, secondaryBudget, tertiaryBudget]) {
   const conflictFlags = spentByGroup.map((spent, i) => {
     const others = spentByGroup.filter((_, j) => j !== i);
-    const hasFiveElsewhere = others.includes(5);
-    const hasFourElsewhere = others.includes(4);
+    const hasPrimaryElsewhere = others.includes(primaryBudget);
+    const hasSecondaryElsewhere = others.includes(secondaryBudget);
     const tiedElsewhere = spent !== 0 && others.includes(spent);
 
-    if (spent > 5) return true;
-    if (hasFiveElsewhere && spent > 4) return true;
-    if (hasFiveElsewhere && hasFourElsewhere && spent > 3) return true;
+    if (spent > primaryBudget) return true;
+    if (hasPrimaryElsewhere && spent > secondaryBudget) return true;
+    if (hasPrimaryElsewhere && hasSecondaryElsewhere && spent > tertiaryBudget) return true;
     return tiedElsewhere;
   });
   const hasConflict = conflictFlags.some(Boolean);
 
-  const rows = ATTRIBUTE_GROUPS.map((group, i) => {
-    const spent = spentByGroup[i];
-    const conflict = conflictFlags[i];
+  const tiers = spentByGroup.map((spent, i) => {
+    if (conflictFlags[i]) return null;
     const others = spentByGroup.filter((_, j) => j !== i);
-    let tier = null;
-    if (!conflict) {
-      if (spent === 5) tier = 'primary';
-      else if (spent === 4) tier = 'secondary';
-      else if (others.includes(5) && others.includes(4)) tier = 'tertiary';
-    }
-    return { group, spent, tier, conflict };
+    if (spent === primaryBudget) return 'primary';
+    if (spent === secondaryBudget) return 'secondary';
+    if (others.includes(primaryBudget) && others.includes(secondaryBudget)) return 'tertiary';
+    return null;
   });
+
+  return { conflictFlags, hasConflict, tiers };
+}
+
+const ATTRIBUTE_PRIORITY_BUDGETS = [5, 4, 3];
+
+function attributePriorityState(character) {
+  const spentByGroup = ATTRIBUTE_GROUPS.map((group) => attributePointsSpent(character, group.attributes));
+  const { conflictFlags, hasConflict, tiers } = computePriorityState(spentByGroup, ATTRIBUTE_PRIORITY_BUDGETS);
+
+  const rows = ATTRIBUTE_GROUPS.map((group, i) => ({
+    group,
+    spent: spentByGroup[i],
+    tier: tiers[i],
+    conflict: conflictFlags[i]
+  }));
 
   return { rows, hasConflict };
 }
@@ -93,6 +108,32 @@ const SKILL_GROUPS = {
     skills: ['animalKen', 'empathy', 'expression', 'intimidation', 'persuasion', 'socialize', 'streetwise', 'subterfuge']
   }
 };
+
+// Skill point-buy priorities: unlike Attributes, Skills start at 0 (no free
+// dot), so every dot counts as spent. Same Primary/Secondary/Tertiary
+// mechanic as Attributes, just applied to the Mental/Physical/Social
+// categories with the Skill budgets (11/7/4) instead of the Attribute
+// budgets (5/4/3).
+const SKILL_CATEGORY_BUDGETS = [11, 7, 4];
+
+function skillPointsSpent(character, skillKeys) {
+  return skillKeys.reduce((sum, key) => sum + character.skills[key], 0);
+}
+
+function skillPriorityState(character) {
+  const groups = Object.values(SKILL_GROUPS);
+  const spentByGroup = groups.map((group) => skillPointsSpent(character, group.skills));
+  const { conflictFlags, hasConflict, tiers } = computePriorityState(spentByGroup, SKILL_CATEGORY_BUDGETS);
+
+  const rows = groups.map((group, i) => ({
+    group,
+    spent: spentByGroup[i],
+    tier: tiers[i],
+    conflict: conflictFlags[i]
+  }));
+
+  return { rows, hasConflict };
+}
 
 const SKILL_LABELS = {
   academics: 'Academics', computer: 'Computer', crafts: 'Crafts',
@@ -201,5 +242,7 @@ export {
   defaultCharacter,
   derivedStats,
   attributePointsSpent,
-  attributePriorityState
+  attributePriorityState,
+  skillPointsSpent,
+  skillPriorityState
 };
