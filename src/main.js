@@ -94,6 +94,19 @@ ipcMain.handle('character:open', async () => {
   return { filePath, data: JSON.parse(raw) };
 });
 
+ipcMain.handle('rules:openMarkdown', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Open Markdown File',
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const filePath = result.filePaths[0];
+  const content = await fs.readFile(filePath, 'utf-8');
+  return { filePath, content };
+});
+
 ipcMain.handle('character:save', async (_event, { data, filePath }) => {
   let targetPath = filePath;
   if (!targetPath) {

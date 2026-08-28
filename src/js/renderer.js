@@ -11,6 +11,7 @@ import {
   computeExperienceState
 } from './character-model.js';
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
+import { renderMarkdown } from './markdown.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
@@ -816,6 +817,28 @@ function initExperienceInfoModal() {
   });
 }
 
+/* ---------- Rules panes (System Rules / Campaign Rules tabs) ---------- */
+
+function initRulesPane(prefix) {
+  const loadBtn = document.getElementById(`${prefix}-load`);
+  const filenameEl = document.getElementById(`${prefix}-filename`);
+  const contentEl = document.getElementById(`${prefix}-content`);
+  if (!loadBtn || !filenameEl || !contentEl) return;
+
+  loadBtn.addEventListener('click', async () => {
+    if (!window.codApi) return;
+    const result = await window.codApi.openMarkdownFile();
+    if (!result) return;
+    filenameEl.textContent = result.filePath.split(/[\\/]/).pop();
+    contentEl.innerHTML = renderMarkdown(result.content);
+  });
+}
+
+function initRulesPanes() {
+  initRulesPane('system-rules');
+  initRulesPane('campaign-rules');
+}
+
 function openAttributeDetail(attrKey) {
   document.getElementById('attribute-detail-title').textContent = ATTRIBUTE_LABELS[attrKey];
   document.getElementById('attribute-detail-body').textContent = ATTRIBUTE_DESCRIPTIONS[attrKey];
@@ -847,4 +870,5 @@ initSkillsInfoModal();
 initBeatsInfoModal();
 initExperienceInfoModal();
 initSizeControl();
+initRulesPanes();
 renderAll();

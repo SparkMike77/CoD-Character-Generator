@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('codApi', {
     ipcRenderer.on('menu-action', (_event, action) => callback(action));
   },
   openCharacter: () => ipcRenderer.invoke('character:open'),
-  saveCharacter: (data, filePath) => ipcRenderer.invoke('character:save', { data, filePath })
+  saveCharacter: (data, filePath) => ipcRenderer.invoke('character:save', { data, filePath }),
+  openMarkdownFile: () => ipcRenderer.invoke('rules:openMarkdown')
 });

@@ -478,6 +478,96 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
 .attr-status.single { justify-content: flex-end; }
 .attr-status.priority-conflict { color: var(--danger); }
 
+/* Rules panes (System Rules / Campaign Rules tabs) */
+.rules-block .block-header-row { justify-content: space-between; }
+.rules-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.markdown-placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.markdown-pane {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.markdown-pane h1,
+.markdown-pane h2,
+.markdown-pane h3,
+.markdown-pane h4,
+.markdown-pane h5,
+.markdown-pane h6 {
+  text-transform: none;
+  letter-spacing: 0;
+  border-bottom: none;
+  margin: 1.1em 0 0.4em 0;
+}
+.markdown-pane h1 { font-size: 20px; }
+.markdown-pane h2 { font-size: 17px; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+.markdown-pane h3 { font-size: 14px; color: var(--accent-strong); text-transform: none; }
+.markdown-pane > :first-child { margin-top: 0; }
+.markdown-pane p { margin: 0 0 0.8em 0; }
+.markdown-pane ul,
+.markdown-pane ol {
+  margin: 0 0 0.8em 0;
+  padding-left: 1.4em;
+}
+.markdown-pane li { margin-bottom: 0.25em; }
+.markdown-pane blockquote {
+  margin: 0 0 0.8em 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-muted);
+}
+.markdown-pane code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.markdown-pane pre {
+  margin: 0 0 0.8em 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.markdown-pane pre code {
+  border: none;
+  background: none;
+  padding: 0;
+}
+.markdown-pane table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 0.8em 0;
+}
+.markdown-pane th,
+.markdown-pane td {
+  text-align: left;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+}
+.markdown-pane th {
+  background: var(--bg);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.markdown-pane hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1em 0;
+}
+.markdown-pane img { max-width: 100%; }
+.markdown-pane a { color: var(--accent-strong); }
+
 .info-icon {
   flex-shrink: 0;
   width: 18px;

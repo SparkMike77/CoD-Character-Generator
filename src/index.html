@@ -21,6 +21,8 @@
   <nav class="page-tabs">
     <button type="button" class="tab-btn active" data-page="page-front">Character Sheet</button>
     <button type="button" class="tab-btn" data-page="page-back">Details &amp; Combat</button>
+    <button type="button" class="tab-btn" data-page="page-system-rules">System Rules</button>
+    <button type="button" class="tab-btn" data-page="page-campaign-rules">Campaign Rules</button>
   </nav>
 
   <main>
@@ -206,6 +208,38 @@
           <tbody></tbody>
         </table>
         <button type="button" id="add-combat" class="add-row-btn">+ Add Weapon</button>
+      </section>
+    </section>
+
+    <!-- PAGE 3: SYSTEM RULES -->
+    <section id="page-system-rules" class="page">
+      <section class="block rules-block">
+        <div class="block-header-row">
+          <h2>System Rules</h2>
+          <div class="rules-toolbar">
+            <button type="button" id="system-rules-load" class="add-row-btn">Load Markdown File...</button>
+            <span id="system-rules-filename" class="file-status">No file loaded</span>
+          </div>
+        </div>
+        <div id="system-rules-content" class="markdown-pane">
+          <p class="markdown-placeholder">Load a .md file to view System Rules here.</p>
+        </div>
+      </section>
+    </section>
+
+    <!-- PAGE 4: CAMPAIGN RULES -->
+    <section id="page-campaign-rules" class="page">
+      <section class="block rules-block">
+        <div class="block-header-row">
+          <h2>Campaign Rules</h2>
+          <div class="rules-toolbar">
+            <button type="button" id="campaign-rules-load" class="add-row-btn">Load Markdown File...</button>
+            <span id="campaign-rules-filename" class="file-status">No file loaded</span>
+          </div>
+        </div>
+        <div id="campaign-rules-content" class="markdown-pane">
+          <p class="markdown-placeholder">Load a .md file to view Campaign Rules here.</p>
+        </div>
       </section>
     </section>
   </main>
