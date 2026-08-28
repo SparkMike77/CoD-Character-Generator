@@ -204,6 +204,13 @@ function setSpecialty(skillKey, value) {
   else character.specialties.push({ skill: skillKey, name: value });
 }
 
+function updateSkillsTotal() {
+  const totalEl = document.getElementById('skills-total');
+  if (!totalEl) return;
+  const total = Object.values(character.skills).reduce((sum, v) => sum + v, 0);
+  totalEl.textContent = `${total} dots spent`;
+}
+
 function renderSkills() {
   const container = document.getElementById('skills-columns');
   clearEl(container);
@@ -233,18 +240,30 @@ function renderSkills() {
 
       const dotsContainer = document.createElement('div');
 
+      const specialtyDot = document.createElement('span');
+      specialtyDot.className = 'dot-half';
+      specialtyDot.title = 'Has a Specialty';
+
       const specialtyInput = document.createElement('input');
       specialtyInput.type = 'text';
       specialtyInput.className = 'skill-specialty';
       specialtyInput.placeholder = 'specialty';
       specialtyInput.value = getSpecialty(skillKey);
+
+      const updateSpecialtyDot = () => {
+        specialtyDot.classList.toggle('visible', getSpecialty(skillKey) !== '');
+      };
+      updateSpecialtyDot();
+
       specialtyInput.addEventListener('input', (e) => {
         setSpecialty(skillKey, e.target.value);
         setDirty(true);
+        updateSpecialtyDot();
       });
 
       row.appendChild(nameSpan);
       row.appendChild(dotsContainer);
+      row.appendChild(specialtyDot);
       row.appendChild(specialtyInput);
       col.appendChild(row);
 
@@ -256,12 +275,15 @@ function renderSkills() {
           character.skills[skillKey] = v;
           setDirty(true);
           renderDerived();
+          updateSkillsTotal();
         }
       });
     });
 
     container.appendChild(col);
   });
+
+  updateSkillsTotal();
 }
 
 /* ---------- Rated lists (Merits / Endowments) ---------- */
