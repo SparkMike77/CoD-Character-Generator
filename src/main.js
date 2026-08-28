@@ -49,6 +49,10 @@ function buildMenu() {
         { type: 'separator' },
         { role: 'togglefullscreen' }
       ]
+    },
+    {
+      label: 'Help',
+      submenu: [{ label: 'About', click: () => sendMenuAction('about') }]
     }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

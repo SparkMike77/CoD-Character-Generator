@@ -17,6 +17,28 @@ function renderState(state) {
   document.getElementById('status-paired').textContent = state.pairedCount;
 }
 
+function openAboutModal() {
+  document.getElementById('about-modal').classList.remove('hidden');
+}
+
+function closeAboutModal() {
+  document.getElementById('about-modal').classList.add('hidden');
+}
+
+function initAboutModal() {
+  const overlay = document.getElementById('about-modal');
+  const closeBtn = document.getElementById('about-close');
+  if (!overlay || !closeBtn) return;
+
+  closeBtn.addEventListener('click', closeAboutModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeAboutModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeAboutModal();
+  });
+}
+
 async function init() {
   const state = await window.gmApi.getSession();
   renderState(state);
@@ -31,6 +53,11 @@ async function init() {
 
   document.getElementById('rotate-pin-btn').addEventListener('click', () => {
     window.gmApi.rotatePin();
+  });
+
+  initAboutModal();
+  window.gmApi.onMenuAction((action) => {
+    if (action === 'about') openAboutModal();
   });
 }
 

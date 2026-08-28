@@ -6,5 +6,8 @@ contextBridge.exposeInMainWorld('gmApi', {
   rotatePin: () => ipcRenderer.invoke('session:rotate-pin'),
   onSessionUpdate: (callback) => {
     ipcRenderer.on('session:update', (_event, state) => callback(state));
+  },
+  onMenuAction: (callback) => {
+    ipcRenderer.on('menu-action', (_event, action) => callback(action));
   }
 });

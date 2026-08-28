@@ -738,7 +738,30 @@ function initMenuBridge() {
     else if (action === 'save') handleSave();
     else if (action === 'save-as') handleSaveAs();
     else if (action === 'print') window.print();
+    else if (action === 'about') openAboutModal();
   });
+}
+
+function initAboutModal() {
+  const overlay = document.getElementById('about-modal');
+  const closeBtn = document.getElementById('about-close');
+  if (!overlay || !closeBtn) return;
+
+  closeBtn.addEventListener('click', closeAboutModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeAboutModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeAboutModal();
+  });
+}
+
+function openAboutModal() {
+  document.getElementById('about-modal').classList.remove('hidden');
+}
+
+function closeAboutModal() {
+  document.getElementById('about-modal').classList.add('hidden');
 }
 
 function initAttributesInfoModal() {
@@ -1064,6 +1087,7 @@ initAttributeDetailModal();
 initSkillsInfoModal();
 initBeatsInfoModal();
 initExperienceInfoModal();
+initAboutModal();
 initSizeControl();
 initRulesPanes();
 initGmSessions();

@@ -139,6 +139,8 @@ button {
 .gm-sessions-badge.hidden { display: none; }
 
 .gmscreen-modal-box { max-width: 420px; }
+
+.about-modal-box { max-width: 620px; max-height: 80vh; overflow-y: auto; }
 .gmscreen-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 .gmscreen-row {
   border: 1px solid var(--border);
