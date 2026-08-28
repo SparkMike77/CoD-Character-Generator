@@ -1,0 +1,12 @@
+{
+  "name": "gmscreen",
+  "version": "0.0.1",
+  "description": "GM-facing server for CoD Character Manager: session configuration, options, and the GM's planning/running interface.",
+  "main": "src/server.js",
+  "author": "SparkMike77",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js"
+  }
+}

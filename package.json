@@ -1,8 +1,8 @@
 {
-  "name": "cod-character-generator",
-  "productName": "CoD Character Generator",
+  "name": "cod-character-manager",
+  "productName": "CoD Character Manager",
   "version": "0.1.0",
-  "description": "Windows character generator and play tool for Chronicles of Darkness, 2nd Edition (baseline humans).",
+  "description": "Windows character manager and play tool for Chronicles of Darkness, 2nd Edition (baseline humans). Pairs with the GMScreen server for GM-driven configuration.",
   "main": "src/main.js",
   "author": "SparkMike77",
   "license": "MIT",
@@ -16,8 +16,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.sparkmike77.codchargen",
-    "productName": "CoD Character Generator",
+    "appId": "com.sparkmike77.codcharmanager",
+    "productName": "CoD Character Manager",
     "files": [
       "src/**/*",
       "package.json"
