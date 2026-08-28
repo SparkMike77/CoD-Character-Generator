@@ -672,6 +672,25 @@ function initAttributesInfoModal() {
   });
 }
 
+function initSkillsInfoModal() {
+  const openBtn = document.getElementById('skills-info-btn');
+  const overlay = document.getElementById('skills-info-modal');
+  const closeBtn = document.getElementById('skills-info-close');
+  if (!openBtn || !overlay || !closeBtn) return;
+
+  const open = () => overlay.classList.remove('hidden');
+  const close = () => overlay.classList.add('hidden');
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
+  });
+}
+
 function openAttributeDetail(attrKey) {
   document.getElementById('attribute-detail-title').textContent = ATTRIBUTE_LABELS[attrKey];
   document.getElementById('attribute-detail-body').textContent = ATTRIBUTE_DESCRIPTIONS[attrKey];
@@ -699,5 +718,6 @@ initToolbar();
 initMenuBridge();
 initAttributesInfoModal();
 initAttributeDetailModal();
+initSkillsInfoModal();
 initSizeControl();
 renderAll();

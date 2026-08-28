@@ -51,7 +51,10 @@
 
       <div class="two-col">
         <section class="block">
-          <h2>Skills</h2>
+          <div class="block-header-row">
+            <button type="button" id="skills-info-btn" class="info-icon" aria-label="Skill dot ratings" title="What do the Skill dots mean?">i</button>
+            <h2>Skills</h2>
+          </div>
           <div id="skills-columns" class="skills-columns"></div>
         </section>
 
@@ -221,6 +224,21 @@
       <button type="button" id="attribute-detail-close" class="modal-close" aria-label="Close">&times;</button>
       <h3 id="attribute-detail-title" class="modal-title"></h3>
       <p id="attribute-detail-body"></p>
+    </div>
+  </div>
+
+  <div id="skills-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="skills-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <p>Skills range from 0 to 5 dots:</p>
+      <p>
+        0 dots: No meaningful training; you can often still try, but you take an unskilled penalty<br />
+        1 dot: Basic familiarity, hobbyist knowledge, or introductory training.<br />
+        2 dots: Professional competence.<br />
+        3 dots: Highly skilled or notably experienced.<br />
+        4 dots: Expert.<br />
+        5 dots: Among the best in a field.
+      </p>
     </div>
   </div>
 
