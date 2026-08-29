@@ -12,6 +12,7 @@ import {
 } from './character-model.js';
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 import { renderMarkdown } from './markdown.js';
+import { DEFAULT_SYSTEM_RULES, DEFAULT_SYSTEM_RULES_FILENAME } from './default-system-rules.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
@@ -982,11 +983,16 @@ function initExperienceInfoModal() {
 
 /* ---------- Rules panes (System Rules / Campaign Rules tabs) ---------- */
 
-function initRulesPane(prefix) {
+function initRulesPane(prefix, defaultDoc) {
   const loadBtn = document.getElementById(`${prefix}-load`);
   const filenameEl = document.getElementById(`${prefix}-filename`);
   const contentEl = document.getElementById(`${prefix}-content`);
   if (!loadBtn || !filenameEl || !contentEl) return;
+
+  if (defaultDoc) {
+    filenameEl.textContent = `${defaultDoc.filename} (built-in)`;
+    contentEl.innerHTML = renderMarkdown(defaultDoc.content);
+  }
 
   loadBtn.addEventListener('click', async () => {
     if (!window.codApi) return;
@@ -998,7 +1004,7 @@ function initRulesPane(prefix) {
 }
 
 function initRulesPanes() {
-  initRulesPane('system-rules');
+  initRulesPane('system-rules', { filename: DEFAULT_SYSTEM_RULES_FILENAME, content: DEFAULT_SYSTEM_RULES });
   initRulesPane('campaign-rules');
 }
 
