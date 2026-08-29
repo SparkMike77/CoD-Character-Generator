@@ -1,7 +1,7 @@
 {
   "name": "gmscreen",
   "productName": "GMScreen",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "GM-facing server for CoD Character Manager: advertises itself on the LAN, PIN-gates pairing, and gives the GM an interface for session configuration and (eventually) running the game.",
   "main": "src/main.js",
   "author": "SparkMike77",
