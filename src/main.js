@@ -5,11 +5,38 @@ const { GmScreenClient } = require('./js/gmscreen-client');
 const { CampaignStore } = require('./js/campaign-store');
 
 let mainWindow;
+let gettingStartedWindow;
 let gmScreenClient;
 let campaignStore;
 
 function sendMenuAction(action) {
   if (mainWindow) mainWindow.webContents.send('menu-action', action);
+}
+
+// A plain top-level window, not a modal dialog - it has no parent, so it
+// can be moved independently and stays open (and usable) while the player
+// keeps working in the main character sheet window behind it.
+function openGettingStartedWindow() {
+  if (gettingStartedWindow && !gettingStartedWindow.isDestroyed()) {
+    gettingStartedWindow.focus();
+    return;
+  }
+
+  gettingStartedWindow = new BrowserWindow({
+    width: 760,
+    height: 820,
+    minWidth: 480,
+    minHeight: 400,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  gettingStartedWindow.setMenu(null);
+  gettingStartedWindow.loadFile(path.join(__dirname, 'getting-started.html'));
+  gettingStartedWindow.on('closed', () => {
+    gettingStartedWindow = null;
+  });
 }
 
 function buildMenu() {
@@ -133,6 +160,8 @@ ipcMain.handle('rules:openMarkdown', async () => {
   const content = await fs.readFile(filePath, 'utf-8');
   return { filePath, content };
 });
+
+ipcMain.handle('getting-started:open', () => openGettingStartedWindow());
 
 ipcMain.handle('gmscreen:known', () => gmScreenClient.listKnown());
 ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenClient.pair({ id, host, port, pin }));

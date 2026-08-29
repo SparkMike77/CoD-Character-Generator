@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('codApi', {
   openCharacter: () => ipcRenderer.invoke('character:open'),
   saveCharacter: (data, filePath) => ipcRenderer.invoke('character:save', { data, filePath }),
   openMarkdownFile: () => ipcRenderer.invoke('rules:openMarkdown'),
+  openGettingStarted: () => ipcRenderer.invoke('getting-started:open'),
 
   onGmScreenUp: (callback) => {
     ipcRenderer.on('gmscreen:up', (_event, info) => callback(info));

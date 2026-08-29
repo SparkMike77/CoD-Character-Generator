@@ -849,6 +849,9 @@ function initToolbar() {
   document.getElementById('btn-open').addEventListener('click', handleOpen);
   document.getElementById('btn-save').addEventListener('click', handleSave);
   document.getElementById('btn-save-as').addEventListener('click', handleSaveAs);
+  document.getElementById('btn-getting-started').addEventListener('click', () => {
+    window.codApi?.openGettingStarted();
+  });
   document.getElementById('add-merit').addEventListener('click', () => {
     character.merits.push({ name: '', dots: 0 });
     setDirty(true);

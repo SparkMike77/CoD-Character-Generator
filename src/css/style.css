@@ -102,6 +102,15 @@ button {
 }
 .toolbar-actions button:disabled:hover { background: #e5e2db; }
 
+.getting-started-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--text);
+}
+.getting-started-btn:hover { background: #efece6; }
+
 .file-status {
   margin-left: 8px;
   font-size: 12px;
@@ -210,6 +219,7 @@ button {
 }
 
 main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.guide-main { max-width: 760px; }
 
 .page { display: none; }
 .page.active { display: block; }
