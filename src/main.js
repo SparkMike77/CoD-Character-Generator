@@ -135,7 +135,21 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  if (gmScreenClient) gmScreenClient.stop();
+  try {
+    if (gmScreenClient) gmScreenClient.stop();
+  } catch (err) {
+    console.error('Error stopping GmScreenClient on quit:', err);
+  }
+});
+
+// Failsafe: closing the window should always take the whole app down with
+// it. gmScreenClient.stop() above (clears its poll timers, stops mDNS)
+// handles the normal case, but if anything unforeseen keeps the event loop
+// alive past that, force a hard exit shortly after quit begins rather than
+// leaving a zombie process running in the background. unref() so this
+// timer itself never keeps the process open.
+app.on('before-quit', () => {
+  setTimeout(() => app.exit(0), 1500).unref();
 });
 
 ipcMain.handle('character:open', async () => {

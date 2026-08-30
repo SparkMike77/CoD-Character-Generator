@@ -106,7 +106,15 @@ class GmServer extends EventEmitter {
   stop() {
     if (this.mdnsService) this.mdnsService.stop();
     if (this.bonjour) this.bonjour.destroy();
-    if (this.httpServer) this.httpServer.close();
+    if (this.httpServer) {
+      // server.close() alone only stops accepting new connections - it
+      // waits for existing ones (e.g. a paired Character Manager's
+      // keep-alive poll socket) to end on their own, which can leave this
+      // process alive in the background well after the window's closed.
+      // Force every open socket shut immediately so close() can complete.
+      this.httpServer.closeAllConnections?.();
+      this.httpServer.close();
+    }
   }
 
   rename(name) {

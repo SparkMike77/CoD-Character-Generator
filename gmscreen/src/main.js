@@ -154,7 +154,22 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  if (gmServer) gmServer.stop();
+  try {
+    if (gmServer) gmServer.stop();
+  } catch (err) {
+    console.error('Error stopping GM server on quit:', err);
+  }
+});
+
+// Failsafe: closing the window should always take the whole app down with
+// it, with nothing left running in the background. gmServer.stop() above
+// handles the normal case, but if anything (a stuck socket, mDNS teardown,
+// anything unforeseen) keeps the event loop alive past that, force a hard
+// exit shortly after quit begins rather than leaving a zombie process
+// holding the pairing port - which blocks both future launches and
+// rebuilds. unref() so this timer itself never keeps the process open.
+app.on('before-quit', () => {
+  setTimeout(() => app.exit(0), 1500).unref();
 });
 
 ipcMain.handle('session:get', () => gmServer.getState());
