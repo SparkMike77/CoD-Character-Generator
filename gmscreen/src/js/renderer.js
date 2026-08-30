@@ -245,7 +245,12 @@ function initCampaignEditor() {
 
 // Purely in-memory, like the rest of a GM "session" (tokens, PIN) - a
 // combat's initiative order doesn't need to survive an app restart.
-let initiativeRows = [{ num: '', name: '' }];
+let initiativeRows = [{ num: '', name: '', status: '' }];
+
+const INITIATIVE_STATUS_OPTIONS = [
+  'Knocked Down', 'Stunned', 'Immobilised', 'Pinned', 'Arm Wrack', 'Leg Wrack',
+  'Blinded', 'Deafened', 'Ongoing Injury', 'Weakened', 'Confused', 'Defeated'
+];
 
 function renderInitiativeList() {
   const container = document.getElementById('initiative-list');
@@ -275,6 +280,23 @@ function renderInitiativeList() {
       row.name = e.target.value;
     });
 
+    const statusSelect = document.createElement('select');
+    statusSelect.className = 'initiative-status';
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '—';
+    statusSelect.appendChild(blankOpt);
+    INITIATIVE_STATUS_OPTIONS.forEach((status) => {
+      const opt = document.createElement('option');
+      opt.value = status;
+      opt.textContent = status;
+      statusSelect.appendChild(opt);
+    });
+    statusSelect.value = row.status;
+    statusSelect.addEventListener('change', (e) => {
+      row.status = e.target.value;
+    });
+
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'remove-row';
@@ -287,6 +309,7 @@ function renderInitiativeList() {
 
     rowEl.appendChild(numInput);
     rowEl.appendChild(nameInput);
+    rowEl.appendChild(statusSelect);
     rowEl.appendChild(removeBtn);
     container.appendChild(rowEl);
   });
@@ -294,7 +317,7 @@ function renderInitiativeList() {
 
 function initScene() {
   document.getElementById('add-initiative').addEventListener('click', () => {
-    initiativeRows.push({ num: '', name: '' });
+    initiativeRows.push({ num: '', name: '', status: '' });
     renderInitiativeList();
   });
   renderInitiativeList();
