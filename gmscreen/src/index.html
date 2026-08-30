@@ -12,11 +12,28 @@
   </header>
 
   <nav class="page-tabs">
-    <button type="button" class="tab-btn active" data-page="page-session">Session</button>
     <button type="button" class="tab-btn" data-page="page-campaign">Campaign</button>
+    <button type="button" class="tab-btn active" data-page="page-session">Session</button>
+    <button type="button" class="tab-btn" data-page="page-scene">Scene</button>
   </nav>
 
   <main>
+    <section id="page-campaign" class="page">
+      <section class="block campaign-block">
+        <div class="block-header-row">
+          <h2>Campaign</h2>
+          <div class="campaign-toolbar">
+            <span id="campaign-filename" class="hint">No campaign loaded</span>
+            <button type="button" id="campaign-preview-toggle" class="add-row-btn">Preview</button>
+            <button type="button" id="campaign-save-btn" class="add-row-btn" disabled>Save</button>
+          </div>
+        </div>
+        <p class="hint">Use File &gt; New &gt; Campaign to start one from the template, or File &gt; Open Campaign... to edit an existing one.</p>
+        <textarea id="campaign-editor" class="campaign-editor" spellcheck="false" placeholder="No campaign file is open."></textarea>
+        <div id="campaign-preview" class="markdown-pane campaign-preview hidden"></div>
+      </section>
+    </section>
+
     <section id="page-session" class="page active">
       <section class="block">
         <h2>Session</h2>
@@ -43,19 +60,10 @@
       </section>
     </section>
 
-    <section id="page-campaign" class="page">
-      <section class="block campaign-block">
-        <div class="block-header-row">
-          <h2>Campaign</h2>
-          <div class="campaign-toolbar">
-            <span id="campaign-filename" class="hint">No campaign loaded</span>
-            <button type="button" id="campaign-preview-toggle" class="add-row-btn">Preview</button>
-            <button type="button" id="campaign-save-btn" class="add-row-btn" disabled>Save</button>
-          </div>
-        </div>
-        <p class="hint">Use File &gt; New &gt; Campaign to start one from the template, or File &gt; Open Campaign... to edit an existing one.</p>
-        <textarea id="campaign-editor" class="campaign-editor" spellcheck="false" placeholder="No campaign file is open."></textarea>
-        <div id="campaign-preview" class="markdown-pane campaign-preview hidden"></div>
+    <section id="page-scene" class="page">
+      <section class="block">
+        <h2>Scene</h2>
+        <p class="hint">Coming soon.</p>
       </section>
     </section>
   </main>
