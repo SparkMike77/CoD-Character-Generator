@@ -68,6 +68,7 @@ function mergeCharacter(loaded) {
     specialties: loaded.specialties || [],
     merits: loaded.merits && loaded.merits.length ? loaded.merits : base.merits,
     endowments: loaded.endowments && loaded.endowments.length ? loaded.endowments : base.endowments,
+    features: loaded.features && loaded.features.length ? loaded.features : base.features,
     aspirations: loaded.aspirations || base.aspirations,
     conditions: loaded.conditions || base.conditions,
     touchstones: loaded.touchstones || base.touchstones,
@@ -383,6 +384,10 @@ function renderEndowments() {
   renderRatedListInto(document.getElementById('endowments-list'), character.endowments, renderEndowments);
 }
 
+function renderFeatures() {
+  renderRatedListInto(document.getElementById('features-list'), character.features, renderFeatures);
+}
+
 function refreshMeritValidation() {
   const container = document.getElementById('merits-list');
   if (!container) return;
@@ -482,16 +487,19 @@ function renderIntegrity() {
 }
 
 const RESOURCE_MAX = 10;
+const DEFAULT_FEATURE_LABEL = 'Features';
 
-// The species' tracked-resource label (Blood Pool, Rage, Swarm, ...) is
-// looked up from the campaign's Species list and cached onto the
-// character itself, so it still displays correctly when the character
+// The species' tracked-resource label (Blood Pool, Rage, Swarm, ...) and
+// its supernatural-trait list label (Disciplines, Gifts, Aptitudes, ...)
+// are looked up from the campaign's Species list and cached onto the
+// character itself, so both still display correctly when the character
 // file is reopened without that campaign's data at hand.
-function syncResourceLabel() {
+function syncSpeciesFields() {
   const record = character.meta.species
     ? currentSpeciesList.find((s) => s.name === character.meta.species)
     : null;
   character.resource.label = record?.trackedResource || '';
+  document.getElementById('features-label').textContent = record?.traitLabel || DEFAULT_FEATURE_LABEL;
   renderResourceTrack();
 }
 
@@ -712,7 +720,7 @@ function renderSpeciesOptions(speciesList) {
     opt.value = '';
     opt.textContent = speciesList === null ? 'Select a Chronicle first' : 'No species defined for this Chronicle';
     select.appendChild(opt);
-    syncResourceLabel();
+    syncSpeciesFields();
     return;
   }
 
@@ -730,7 +738,7 @@ function renderSpeciesOptions(speciesList) {
   });
 
   select.value = character.meta.species || '';
-  syncResourceLabel();
+  syncSpeciesFields();
 }
 
 // Re-pulls the known-campaigns list and, if the character is tied to one,
@@ -797,7 +805,7 @@ async function handleChronicleChange(e) {
 function handleSpeciesChange(e) {
   character.meta.species = e.target.value;
   setDirty(true);
-  syncResourceLabel();
+  syncSpeciesFields();
 }
 
 function initCampaignFields() {
@@ -813,6 +821,7 @@ function renderAll() {
   renderSkills();
   renderMerits();
   renderEndowments();
+  renderFeatures();
   renderAspirations();
   renderConditions();
   renderTouchstones();
@@ -912,6 +921,11 @@ function initToolbar() {
     character.endowments.push({ name: '', dots: 0 });
     setDirty(true);
     renderEndowments();
+  });
+  document.getElementById('add-feature').addEventListener('click', () => {
+    character.features.push({ name: '', dots: 0 });
+    setDirty(true);
+    renderFeatures();
   });
   document.getElementById('add-equipment').addEventListener('click', () => {
     character.equipment.push({ item: '', durability: '', structure: '', size: '', cost: '' });

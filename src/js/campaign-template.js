@@ -29,23 +29,32 @@ splat, like Blood Pool for Vampires or Rage for Werewolves. Add a line
 "Tracked Resource: <name>" anywhere in the species' body to give Character
 Manager the field's label. Leave it out if the species has no such pool.
 
+Each species can also rename the sheet's supernatural-trait list (default
+label "Features") to whatever that splat calls it - Disciplines, Gifts,
+Aptitudes, etc. Add a line "Trait Label: <name>" anywhere in the species'
+body. Leave it out to keep the default "Features" label.
+
 ### Human
 
 The baseline. No changes from the core rules.
 
 Tracked Resource: Luck
+Trait Label: Features
 
 ### Vampire
 
 Tracked Resource: Blood Pool
+Trait Label: Disciplines
 
 ### Werewolf
 
 Tracked Resource: Rage
+Trait Label: Gifts
 
 ### Changed
 
 Tracked Resource: Swarm
+Trait Label: Aptitudes
 `;
 
 module.exports = { CAMPAIGN_TEMPLATE };

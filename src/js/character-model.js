@@ -321,6 +321,7 @@ function defaultCharacter() {
     specialties: [], // { skill, name }
     merits: Array.from({ length: 7 }, emptyRatedRow),
     endowments: Array.from({ length: 4 }, emptyRatedRow),
+    features: Array.from({ length: 4 }, emptyRatedRow), // labeled per species: Features, Disciplines, Gifts, Aptitudes, ...
     aspirations: ['', '', ''],
     conditions: ['', '', '', ''],
     touchstones: ['', '', ''],
