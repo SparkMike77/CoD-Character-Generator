@@ -36,21 +36,33 @@ function extractChronicleName(body) {
   return match ? match[1].trim() : 'Untitled Chronicle';
 }
 
+const TRACKED_RESOURCE_RE = /^Tracked Resource:\s*(.+)$/i;
+
 // Every "### X" heading nested directly under the "## Species" section is
 // one selectable species - collected up to the next "## " section or EOF.
+// A species' body may contain a "Tracked Resource: <name>" line, which
+// names its splat-specific dot pool (Blood Pool, Rage, Swarm, ...);
+// trackedResource is null when a species doesn't define one.
 function extractSpeciesList(body) {
   const lines = body.split(/\r?\n/);
   const speciesHeadingIdx = lines.findIndex((line) => /^##\s+Species\s*$/i.test(line));
   if (speciesHeadingIdx === -1) return [];
 
-  const names = [];
+  const species = [];
+  let current = null;
   for (let i = speciesHeadingIdx + 1; i < lines.length; i++) {
     const line = lines[i];
     if (/^##\s+/.test(line)) break;
-    const match = /^###\s+(.+)$/.exec(line);
-    if (match) names.push(match[1].trim());
+    const headingMatch = /^###\s+(.+)$/.exec(line);
+    if (headingMatch) {
+      current = { name: headingMatch[1].trim(), trackedResource: null };
+      species.push(current);
+      continue;
+    }
+    const resourceMatch = current && TRACKED_RESOURCE_RE.exec(line.trim());
+    if (resourceMatch) current.trackedResource = resourceMatch[1].trim();
   }
-  return names;
+  return species;
 }
 
 module.exports = { parseCampaignFile, serializeCampaignFile, extractChronicleName, extractSpeciesList };

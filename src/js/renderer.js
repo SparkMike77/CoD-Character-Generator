@@ -75,6 +75,7 @@ function mergeCharacter(loaded) {
     tactics: loaded.tactics || base.tactics,
     health: { ...base.health, ...(loaded.health || {}) },
     willpower: { ...base.willpower, ...(loaded.willpower || {}) },
+    resource: { ...base.resource, ...(loaded.resource || {}) },
     description: { ...base.description, ...(loaded.description || {}) },
     equipment: loaded.equipment && loaded.equipment.length ? loaded.equipment : base.equipment,
     combat: loaded.combat && loaded.combat.length ? loaded.combat : base.combat
@@ -480,6 +481,50 @@ function renderIntegrity() {
   });
 }
 
+const RESOURCE_MAX = 10;
+
+// The species' tracked-resource label (Blood Pool, Rage, Swarm, ...) is
+// looked up from the campaign's Species list and cached onto the
+// character itself, so it still displays correctly when the character
+// file is reopened without that campaign's data at hand.
+function syncResourceLabel() {
+  const record = character.meta.species
+    ? currentSpeciesList.find((s) => s.name === character.meta.species)
+    : null;
+  character.resource.label = record?.trackedResource || '';
+  renderResourceTrack();
+}
+
+function renderResourceTrack() {
+  const heading = document.getElementById('resource-label');
+  const container = document.getElementById('resource-track');
+  const hasResource = !!character.resource.label;
+
+  heading.textContent = hasResource ? character.resource.label : 'Tracked Resource';
+  container.classList.toggle('disabled', !hasResource);
+
+  if (!hasResource) {
+    character.resource.dots = 0;
+    clearEl(container);
+    const note = document.createElement('span');
+    note.textContent = character.meta.species
+      ? '(no tracked resource for this species)'
+      : '(select a species)';
+    container.appendChild(note);
+    return;
+  }
+
+  createDotRow(container, {
+    max: RESOURCE_MAX,
+    min: 0,
+    getValue: () => character.resource.dots,
+    setValue: (v) => {
+      character.resource.dots = v;
+      setDirty(true);
+    }
+  });
+}
+
 function refreshIntegrityValidation() {
   const container = document.getElementById('integrity-ladder');
   if (!container) return;
@@ -522,6 +567,7 @@ function renderDerived() {
   document.getElementById('derived-initiative').textContent = d.initiativeMod;
   renderHealth();
   renderWillpower();
+  renderResourceTrack();
 }
 
 function initSizeControl() {
@@ -619,6 +665,7 @@ function bindStaticFields() {
 /* ---------- Campaign (Chronicle / Species) ---------- */
 
 let knownCampaigns = []; // [{ campaignId, chronicle, version, isCustom }]
+let currentSpeciesList = []; // [{ name, trackedResource }], from the resolved Chronicle
 
 function renderChronicleOptions() {
   const select = document.getElementById('chronicle-select');
@@ -655,6 +702,7 @@ function renderChronicleOptions() {
 // speciesList: null means no Chronicle is resolved yet (nothing to pick
 // from); an array (possibly empty) means a Chronicle IS resolved.
 function renderSpeciesOptions(speciesList) {
+  currentSpeciesList = speciesList || [];
   const select = document.getElementById('species-select');
   clearEl(select);
 
@@ -664,6 +712,7 @@ function renderSpeciesOptions(speciesList) {
     opt.value = '';
     opt.textContent = speciesList === null ? 'Select a Chronicle first' : 'No species defined for this Chronicle';
     select.appendChild(opt);
+    syncResourceLabel();
     return;
   }
 
@@ -673,7 +722,7 @@ function renderSpeciesOptions(speciesList) {
   blank.textContent = '— None —';
   select.appendChild(blank);
 
-  speciesList.forEach((name) => {
+  speciesList.forEach(({ name }) => {
     const opt = document.createElement('option');
     opt.value = name;
     opt.textContent = name;
@@ -681,6 +730,7 @@ function renderSpeciesOptions(speciesList) {
   });
 
   select.value = character.meta.species || '';
+  syncResourceLabel();
 }
 
 // Re-pulls the known-campaigns list and, if the character is tied to one,
@@ -747,6 +797,7 @@ async function handleChronicleChange(e) {
 function handleSpeciesChange(e) {
   character.meta.species = e.target.value;
   setDirty(true);
+  syncResourceLabel();
 }
 
 function initCampaignFields() {

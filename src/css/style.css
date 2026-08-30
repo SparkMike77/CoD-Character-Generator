@@ -480,6 +480,8 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 
 .derived-note { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-size: 11px; }
 
+#resource-track.disabled { color: var(--text-muted); font-size: 11px; }
+
 /* Data tables */
 .data-table {
   width: 100%;

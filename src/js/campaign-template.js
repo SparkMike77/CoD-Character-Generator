@@ -24,9 +24,28 @@ Fill in "Feature 1" through "Feature 6" below. They map to Character Manager's V
 
 List every species playable in this Chronicle as its own heading below. Flavor text and any mechanical changes go in the body.
 
+Each species can define a tracked resource - a dot pool unique to that
+splat, like Blood Pool for Vampires or Rage for Werewolves. Add a line
+"Tracked Resource: <name>" anywhere in the species' body to give Character
+Manager the field's label. Leave it out if the species has no such pool.
+
 ### Human
 
 The baseline. No changes from the core rules.
+
+Tracked Resource: Luck
+
+### Vampire
+
+Tracked Resource: Blood Pool
+
+### Werewolf
+
+Tracked Resource: Rage
+
+### Changed
+
+Tracked Resource: Swarm
 `;
 
 module.exports = { CAMPAIGN_TEMPLATE };

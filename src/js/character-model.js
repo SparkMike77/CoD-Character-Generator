@@ -329,6 +329,7 @@ function defaultCharacter() {
     health: { boxes: [] }, // array of 'empty' | 'bashing' | 'lethal' | 'aggravated'
     willpower: { spent: 0, risked: false },
     integrity: 7,
+    resource: { label: '', dots: 0 }, // per-species tracked pool, e.g. Blood Pool, Rage, Swarm
     beats: 0,
     groupBeats: 0,
     experience: 0,
