@@ -1,9 +1,14 @@
 import { renderMarkdown } from './markdown.js';
+import { renderCharacterSheet } from './character-view.js';
 
 let renameTimer = null;
 let currentCampaignPath = null;
 let campaignDirty = false;
 let campaignPreviewMode = false;
+
+function clearEl(node) {
+  while (node.firstChild) node.removeChild(node.firstChild);
+}
 
 function renderState(state) {
   const nameInput = document.getElementById('session-name-input');
@@ -33,6 +38,80 @@ function initTabs() {
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => activateTab(btn.dataset.page));
   });
+}
+
+/* ---------- Player tabs (paired Character Managers) ---------- */
+
+// Slot order (Player1..Player9, assigned by GmServer in pairing order) is
+// the tab order too - a tab first appears the moment that Character Manager
+// pairs this session, and stays for the rest of the run.
+function playerTabLabel(player) {
+  return player.character && player.name ? player.name : `Player${player.slot}`;
+}
+
+function ensurePlayerTab(player) {
+  const nav = document.querySelector('.page-tabs');
+  const main = document.querySelector('main');
+  const pageId = `page-player-${player.id}`;
+
+  let btn = document.querySelector(`.tab-btn[data-page="${pageId}"]`);
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tab-btn';
+    btn.dataset.page = pageId;
+    btn.addEventListener('click', () => activateTab(pageId));
+    nav.appendChild(btn);
+  }
+  btn.textContent = playerTabLabel(player);
+
+  let page = document.getElementById(pageId);
+  if (!page) {
+    page = document.createElement('section');
+    page.id = pageId;
+    page.className = 'page page-player';
+    main.appendChild(page);
+  }
+  return page;
+}
+
+function renderPlayerPage(page, player) {
+  clearEl(page);
+
+  if (!player.character) {
+    const wrap = document.createElement('div');
+    wrap.className = 'block player-blank';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'add-row-btn player-request-btn';
+    if (player.pendingRequest) {
+      btn.textContent = 'Waiting for response...';
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'Request Character';
+      btn.addEventListener('click', () => window.gmApi.requestCharacter(player.id));
+    }
+    wrap.appendChild(btn);
+    page.appendChild(wrap);
+    return;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'block ro-sheet-block';
+  renderCharacterSheet(wrap, player.character);
+  page.appendChild(wrap);
+}
+
+function renderPlayers(players) {
+  (players || []).forEach((player) => {
+    const page = ensurePlayerTab(player);
+    renderPlayerPage(page, player);
+  });
+}
+
+function initPlayers() {
+  window.gmApi.getPlayers().then(renderPlayers);
+  window.gmApi.onPlayersUpdate(renderPlayers);
 }
 
 /* ---------- About modal ---------- */
@@ -184,6 +263,7 @@ async function init() {
   initCampaignEditor();
   initAboutModal();
   initSessionNeedsCampaignModal();
+  initPlayers();
 
   window.gmApi.onMenuAction((action) => {
     if (action === 'about') openAboutModal();

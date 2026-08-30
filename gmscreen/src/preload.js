@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('gmApi', {
   onSessionUpdate: (callback) => {
     ipcRenderer.on('session:update', (_event, state) => callback(state));
   },
+  getPlayers: () => ipcRenderer.invoke('players:get'),
+  requestCharacter: (playerId) => ipcRenderer.invoke('players:request', playerId),
+  onPlayersUpdate: (callback) => {
+    ipcRenderer.on('players:update', (_event, players) => callback(players));
+  },
   onMenuAction: (callback) => {
     ipcRenderer.on('menu-action', (_event, action) => callback(action));
   },

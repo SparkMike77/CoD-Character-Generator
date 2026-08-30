@@ -7,6 +7,7 @@ const { Bonjour } = require('bonjour-service');
 const MDNS_TYPE = 'gmscreen';
 const PIN_MAX_ATTEMPTS = 5;
 const PIN_LOCKOUT_MS = 60_000;
+const MAX_PLAYER_SLOTS = 9;
 
 function generatePin() {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
@@ -65,7 +66,11 @@ class GmServer extends EventEmitter {
     this.sessionName = sessionName;
     this.instanceId = crypto.randomUUID();
     this.pin = generatePin();
-    this.tokens = new Map(); // token -> { pairedAt }
+    // Each paired Character Manager gets a slot (Player1..Player9, in pairing
+    // order) for the life of this GMScreen run - slots are purely in-memory,
+    // same as tokens/PIN, since a restart already forces everyone to re-pair.
+    this.tokens = new Map(); // token -> { pairedAt, slot, name, character, pendingRequest }
+    this.nextSlot = 1;
     this.attempts = new Map(); // remoteAddress -> { count, lockUntil }
     this.campaign = null; // { campaignId, version, chronicle, body } | null
     this.bonjour = null;
@@ -116,6 +121,21 @@ class GmServer extends EventEmitter {
     this.pin = generatePin();
     this.attempts.clear();
     this.emit('change', this.getState());
+  }
+
+  // Player1..Player9 tabs, in the order Character Managers paired this run.
+  getPlayers() {
+    return [...this.tokens.entries()]
+      .filter(([, t]) => t.slot != null)
+      .map(([token, t]) => ({ id: token, slot: t.slot, name: t.name, character: t.character, pendingRequest: t.pendingRequest }))
+      .sort((a, b) => a.slot - b.slot);
+  }
+
+  requestCharacter(playerId) {
+    const entry = this.tokens.get(playerId);
+    if (!entry) return;
+    entry.pendingRequest = true;
+    this.emit('players-change', this.getPlayers());
   }
 
   _publish() {
@@ -170,8 +190,10 @@ class GmServer extends EventEmitter {
         if (body.pin === this.pin) {
           this.attempts.delete(remoteAddress);
           const token = crypto.randomBytes(24).toString('hex');
-          this.tokens.set(token, { pairedAt: Date.now() });
+          const slot = this.nextSlot <= MAX_PLAYER_SLOTS ? this.nextSlot++ : null;
+          this.tokens.set(token, { pairedAt: Date.now(), slot, name: null, character: null, pendingRequest: false });
           this.emit('change', this.getState());
+          if (slot != null) this.emit('players-change', this.getPlayers());
           return sendJson(res, 200, { token, id: this.instanceId, name: this.sessionName });
         }
         this._recordFailure(remoteAddress);
@@ -189,6 +211,33 @@ class GmServer extends EventEmitter {
         if (!token || !this.tokens.has(token)) return sendJson(res, 401, { error: 'Invalid token' });
         if (!this.campaign) return sendJson(res, 404, { error: 'No campaign loaded' });
         return sendJson(res, 200, this.campaign);
+      }
+
+      // Character Manager polls this at a short interval while paired, since
+      // GMScreen (the HTTP server here) has no way to dial back out to it -
+      // one-shot: reading a pending request clears it, same as the GM's
+      // click only ever asking once.
+      if (req.method === 'GET' && req.url === '/character-request') {
+        const token = this._bearerToken(req);
+        const entry = token && this.tokens.get(token);
+        if (!entry) return sendJson(res, 401, { error: 'Invalid token' });
+        const pending = !!entry.pendingRequest;
+        if (pending) {
+          entry.pendingRequest = false;
+          this.emit('players-change', this.getPlayers());
+        }
+        return sendJson(res, 200, { pending });
+      }
+
+      if (req.method === 'POST' && req.url === '/character') {
+        const token = this._bearerToken(req);
+        const entry = token && this.tokens.get(token);
+        if (!entry) return sendJson(res, 401, { error: 'Invalid token' });
+        const body = await readJsonBody(req);
+        entry.character = body.character || null;
+        entry.name = entry.character?.meta?.name || null;
+        this.emit('players-change', this.getPlayers());
+        return sendJson(res, 200, { ok: true });
       }
 
       sendJson(res, 404, { error: 'Not found' });

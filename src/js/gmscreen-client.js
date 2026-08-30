@@ -5,6 +5,7 @@ const { Bonjour } = require('bonjour-service');
 
 const MDNS_TYPE = 'gmscreen';
 const REQUEST_TIMEOUT_MS = 5000;
+const CHARACTER_REQUEST_POLL_MS = 2000;
 
 // Prefers a routable IPv4 address advertised by the service over Windows'
 // APIPA link-local range (169.254.0.0/16) or referer.address, either of
@@ -60,6 +61,7 @@ class GmScreenClient extends EventEmitter {
     this.bonjour = null;
     this.browser = null;
     this.live = new Map(); // id -> { id, name, host, port }
+    this.pollTimers = new Map(); // gmscreen id -> interval handle
   }
 
   start() {
@@ -92,6 +94,46 @@ class GmScreenClient extends EventEmitter {
   stop() {
     if (this.browser) this.browser.stop();
     if (this.bonjour) this.bonjour.destroy();
+    for (const id of this.pollTimers.keys()) this.stopPolling(id);
+  }
+
+  // While paired, GMScreen may want to push a "load your character" request
+  // at any moment - but GMScreen is the HTTP server here and can't dial back
+  // in to us, so we poll it instead. Kept lightweight (a plain GET, no body)
+  // since it runs continuously for every connected GMScreen.
+  startPolling(id) {
+    if (this.pollTimers.has(id)) return;
+    const timer = setInterval(async () => {
+      const connections = await this._loadConnections();
+      const entry = connections[id];
+      if (!entry) {
+        this.stopPolling(id);
+        return;
+      }
+      const { status, data } = await requestJson(entry.host, entry.port, 'GET', '/character-request', {
+        token: entry.token
+      });
+      if (status === 200 && data.pending) this.emit('character-request', { id });
+    }, CHARACTER_REQUEST_POLL_MS);
+    this.pollTimers.set(id, timer);
+  }
+
+  stopPolling(id) {
+    const timer = this.pollTimers.get(id);
+    if (!timer) return;
+    clearInterval(timer);
+    this.pollTimers.delete(id);
+  }
+
+  async sendCharacter(id, characterData) {
+    const connections = await this._loadConnections();
+    const entry = connections[id];
+    if (!entry) return { ok: false, error: 'Not connected to that GMScreen.' };
+    const { status } = await requestJson(entry.host, entry.port, 'POST', '/character', {
+      token: entry.token,
+      body: { character: characterData }
+    });
+    return { ok: status === 200 };
   }
 
   async _loadConnections() {
@@ -133,6 +175,7 @@ class GmScreenClient extends EventEmitter {
       connections[id] = { id, name: data.name, host, port, token: data.token, pairedAt: Date.now() };
       await this._saveConnections(connections);
       await this._fetchAndStoreCampaign(host, port, data.token, id);
+      this.startPolling(id);
       return { ok: true, name: data.name };
     }
     if (status === 429) return { ok: false, error: data.error || 'Too many attempts. Try again shortly.' };
@@ -149,15 +192,18 @@ class GmScreenClient extends EventEmitter {
     });
     if (status === 200) {
       await this._fetchAndStoreCampaign(host || entry.host, port || entry.port, entry.token, id);
+      this.startPolling(id);
       return { ok: true, name: entry.name };
     }
 
+    this.stopPolling(id);
     delete connections[id];
     await this._saveConnections(connections);
     return { ok: false };
   }
 
   async forget(id) {
+    this.stopPolling(id);
     const connections = await this._loadConnections();
     delete connections[id];
     await this._saveConnections(connections);

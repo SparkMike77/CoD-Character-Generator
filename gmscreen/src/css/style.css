@@ -91,6 +91,7 @@ button {
 
 main { padding: 16px; max-width: 440px; margin: 0 auto; }
 main:has(#page-campaign.active) { max-width: 800px; }
+main:has(.page-player.active) { max-width: 800px; }
 
 .block {
   background: var(--panel-bg);
@@ -325,3 +326,63 @@ main:has(#page-campaign.active) { max-width: 800px; }
 }
 .markdown-pane img { max-width: 100%; }
 .markdown-pane a { color: var(--accent-strong); }
+
+/* Player tabs (paired Character Managers) */
+.player-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+}
+.player-request-btn { padding: 12px 24px; font-size: 14px; }
+.player-request-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* Read-only character sheet */
+.ro-sheet-block { display: flex; flex-direction: column; gap: 18px; }
+.ro-block h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.ro-header { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.ro-field { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.ro-field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.ro-field-value { font-size: 13px; font-weight: 600; }
+
+.ro-attr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.ro-attr-col h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 6px 0;
+}
+.ro-attr-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 12px; }
+.ro-attr-name { color: var(--text); }
+
+.ro-dot-row { display: flex; gap: 3px; }
+.ro-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--border-strong); background: none; }
+.ro-dot.filled { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+.ro-vitals { display: flex; flex-wrap: wrap; gap: 24px; }
+.ro-vital h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 6px 0; }
+.ro-health-row { display: flex; flex-wrap: wrap; gap: 3px; max-width: 220px; }
+.ro-health-box {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.ro-health-box.aggravated { background: var(--danger); color: #fff; }
+
+.ro-rated-list, .ro-line-list { display: flex; flex-direction: column; gap: 6px; }
+.ro-rated-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+.ro-line { font-size: 12px; margin: 0; }
+.ro-empty-hint { font-size: 11px; color: var(--text-muted); margin: 0; }
+
+.ro-traits-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.ro-trait-col h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 6px 0; }

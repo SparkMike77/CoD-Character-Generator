@@ -385,6 +385,7 @@ function renderEndowments() {
 }
 
 function renderFeatures() {
+  document.getElementById('features-label').textContent = character.featureLabel || DEFAULT_FEATURE_LABEL;
   renderRatedListInto(document.getElementById('features-list'), character.features, renderFeatures);
 }
 
@@ -499,7 +500,8 @@ function syncSpeciesFields() {
     ? currentSpeciesList.find((s) => s.name === character.meta.species)
     : null;
   character.resource.label = record?.trackedResource || '';
-  document.getElementById('features-label').textContent = record?.traitLabel || DEFAULT_FEATURE_LABEL;
+  character.featureLabel = record?.traitLabel || DEFAULT_FEATURE_LABEL;
+  document.getElementById('features-label').textContent = character.featureLabel;
   renderResourceTrack();
 }
 
@@ -1271,6 +1273,55 @@ function initGmSessions() {
   gmUpdateBadge();
 }
 
+/* ---------- GM character requests ---------- */
+
+// "Loaded" means the player has actually named or saved/opened a character,
+// not just that the always-present in-memory default character object
+// exists - a brand-new untouched sheet shouldn't count as something to send.
+function isCharacterLoaded() {
+  return !!(currentFilePath || (character.meta.name && character.meta.name.trim()));
+}
+
+let pendingCharacterRequestGmId = null;
+
+function openCharacterRequestModal(gmId) {
+  pendingCharacterRequestGmId = gmId;
+  document.getElementById('character-request-modal').classList.remove('hidden');
+}
+
+function closeCharacterRequestModal() {
+  document.getElementById('character-request-modal').classList.add('hidden');
+  pendingCharacterRequestGmId = null;
+}
+
+function initCharacterRequestModal() {
+  if (!window.codApi) return;
+
+  const overlay = document.getElementById('character-request-modal');
+  const noCharOverlay = document.getElementById('no-character-modal');
+
+  window.codApi.onGmScreenCharacterRequest(({ id }) => openCharacterRequestModal(id));
+
+  document.getElementById('character-request-send').addEventListener('click', async () => {
+    const gmId = pendingCharacterRequestGmId;
+    closeCharacterRequestModal();
+    if (!isCharacterLoaded()) {
+      noCharOverlay.classList.remove('hidden');
+      return;
+    }
+    await window.codApi.sendCharacterToGm(gmId, character);
+  });
+
+  document.getElementById('character-request-decline').addEventListener('click', closeCharacterRequestModal);
+
+  document.getElementById('no-character-modal-close').addEventListener('click', () => {
+    noCharOverlay.classList.add('hidden');
+  });
+  noCharOverlay.addEventListener('click', (e) => {
+    if (e.target === noCharOverlay) noCharOverlay.classList.add('hidden');
+  });
+}
+
 function openAttributeDetail(attrKey) {
   document.getElementById('attribute-detail-title').textContent = ATTRIBUTE_LABELS[attrKey];
   document.getElementById('attribute-detail-body').textContent = ATTRIBUTE_DESCRIPTIONS[attrKey];
@@ -1305,6 +1356,7 @@ initAboutModal();
 initSizeControl();
 initRulesPanes();
 initGmSessions();
+initCharacterRequestModal();
 initCampaignFields();
 renderAll();
 refreshCampaignUI();

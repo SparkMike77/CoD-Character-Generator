@@ -115,6 +115,9 @@ app.whenReady().then(() => {
   gmServer.on('change', (state) => {
     if (mainWindow) mainWindow.webContents.send('session:update', state);
   });
+  gmServer.on('players-change', (players) => {
+    if (mainWindow) mainWindow.webContents.send('players:update', players);
+  });
 
   createWindow();
 
@@ -140,6 +143,9 @@ ipcMain.handle('session:rotate-pin', () => {
   gmServer.rotatePin();
   return gmServer.getState();
 });
+
+ipcMain.handle('players:get', () => gmServer.getPlayers());
+ipcMain.handle('players:request', (_event, playerId) => gmServer.requestCharacter(playerId));
 
 ipcMain.handle('campaign:get', () => ({ filePath: currentCampaign.filePath, content: currentCampaign.body }));
 

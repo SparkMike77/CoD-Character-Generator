@@ -361,6 +361,24 @@
     </div>
   </div>
 
+  <div id="character-request-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 class="modal-title">Character Request</h3>
+      <p>GM has requested to load your Character</p>
+      <div class="modal-actions">
+        <button type="button" id="character-request-send" class="add-row-btn">Send</button>
+        <button type="button" id="character-request-decline" class="gmscreen-link-btn">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="no-character-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="no-character-modal-close" class="modal-close" aria-label="Close">&times;</button>
+      <p>No character is loaded. Please load a character.</p>
+    </div>
+  </div>
+
   <script type="module" src="js/renderer.js"></script>
 </body>
 </html>

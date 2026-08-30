@@ -121,6 +121,9 @@ app.whenReady().then(() => {
   gmScreenClient.on('down', (info) => {
     if (mainWindow) mainWindow.webContents.send('gmscreen:down', info);
   });
+  gmScreenClient.on('character-request', (info) => {
+    if (mainWindow) mainWindow.webContents.send('gmscreen:character-request', info);
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -167,6 +170,7 @@ ipcMain.handle('gmscreen:known', () => gmScreenClient.listKnown());
 ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenClient.pair({ id, host, port, pin }));
 ipcMain.handle('gmscreen:check', (_event, { id, host, port }) => gmScreenClient.check({ id, host, port }));
 ipcMain.handle('gmscreen:forget', (_event, id) => gmScreenClient.forget(id));
+ipcMain.handle('gmscreen:sendCharacter', (_event, { id, character }) => gmScreenClient.sendCharacter(id, character));
 
 ipcMain.handle('campaigns:list', () => campaignStore.list());
 ipcMain.handle('campaigns:get', (_event, campaignId) => campaignStore.get(campaignId));

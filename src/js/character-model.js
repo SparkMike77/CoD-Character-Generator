@@ -322,6 +322,7 @@ function defaultCharacter() {
     merits: Array.from({ length: 7 }, emptyRatedRow),
     endowments: Array.from({ length: 4 }, emptyRatedRow),
     features: Array.from({ length: 4 }, emptyRatedRow), // labeled per species: Features, Disciplines, Gifts, Aptitudes, ...
+    featureLabel: '', // cached species label for `features`, e.g. "Disciplines" - see resource.label
     aspirations: ['', '', ''],
     conditions: ['', '', '', ''],
     touchstones: ['', '', ''],

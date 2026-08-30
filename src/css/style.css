@@ -752,3 +752,5 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
   padding: 4px 8px;
 }
 .modal-close:hover { color: var(--danger); }
+
+.modal-actions { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
