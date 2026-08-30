@@ -5,9 +5,11 @@ const fs = require('fs/promises');
 const { GmServer } = require('./gm-server');
 const { CAMPAIGN_TEMPLATE } = require('./campaign-template');
 const { parseCampaignFile, serializeCampaignFile, extractChronicleName } = require('./campaign-file');
+const { SessionStore } = require('./session-store');
 
 let mainWindow;
 let gmServer;
+let sessionStore;
 // filePath/campaignId/version/body: campaignId+version travel inside the
 // file itself (see campaign-file.js) so GMScreen can tell a paired client
 // whether its locally-stored copy is stale - see GET /campaign.
@@ -54,6 +56,9 @@ function buildMenu() {
           ]
         },
         { label: 'Open Campaign...', click: () => sendMenuAction('open-campaign') },
+        { type: 'separator' },
+        { label: 'Save Session', click: () => sendMenuAction('save-session') },
+        { label: 'Open Session...', click: () => sendMenuAction('open-session') },
         { type: 'separator' },
         { role: 'quit' }
       ]
@@ -133,6 +138,8 @@ if (!gotLock) {
     gmServer.on('players-change', (players) => {
       if (mainWindow) mainWindow.webContents.send('players:update', players);
     });
+
+    sessionStore = new SessionStore({ sessionsDir: path.join(app.getPath('userData'), 'Sessions') });
 
     createWindow();
 
@@ -214,4 +221,33 @@ ipcMain.handle('campaign:save', async (_event, content) => {
   currentCampaign = { filePath: currentCampaign.filePath, campaignId, version, body: content };
   publishCampaign();
   return { ok: true };
+});
+
+ipcMain.handle('gmsession:save', async (_event, scene) => {
+  const chronicle = currentCampaign.filePath ? extractChronicleName(currentCampaign.body) : 'No Campaign';
+  const payload = {
+    schemaVersion: 1,
+    savedAt: new Date().toISOString(),
+    sessionName: gmServer.getState().name,
+    chronicle,
+    scene
+  };
+  const { filePath } = await sessionStore.save(chronicle, payload);
+  return { ok: true, filePath };
+});
+
+ipcMain.handle('gmsession:open', async () => {
+  await sessionStore.ensureDir();
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Open Session',
+    defaultPath: sessionStore.sessionsDir,
+    filters: [{ name: 'GM Session', extensions: ['gmsession'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const raw = await fs.readFile(result.filePaths[0], 'utf-8');
+  const payload = JSON.parse(raw);
+  if (payload.sessionName) gmServer.rename(payload.sessionName);
+  return payload;
 });

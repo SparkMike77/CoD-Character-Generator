@@ -347,6 +347,37 @@ function initScene() {
   initSceneTabs();
 }
 
+/* ---------- Session save / reload (Scene state) ---------- */
+
+function gatherSceneState() {
+  return {
+    initiative: initiativeRows,
+    combatNotes: document.querySelector('#scene-combat .scene-textarea').value,
+    socialNotes: document.querySelector('#scene-social .scene-textarea').value
+  };
+}
+
+function applySceneState(scene) {
+  initiativeRows = scene && scene.initiative && scene.initiative.length
+    ? scene.initiative.map((r) => ({ num: r.num || '', name: r.name || '', status: r.status || '', action: r.action || '' }))
+    : [{ num: '', name: '', status: '', action: '' }];
+  renderInitiativeList();
+  document.querySelector('#scene-combat .scene-textarea').value = (scene && scene.combatNotes) || '';
+  document.querySelector('#scene-social .scene-textarea').value = (scene && scene.socialNotes) || '';
+}
+
+async function handleSaveSession() {
+  const result = await window.gmApi.saveSession(gatherSceneState());
+  if (result && result.ok) window.alert(`Session saved: ${result.filePath.split(/[\\/]/).pop()}`);
+}
+
+async function handleOpenSession() {
+  const payload = await window.gmApi.openSession();
+  if (!payload) return;
+  applySceneState(payload.scene);
+  activateTab('page-scene');
+}
+
 async function init() {
   const state = await window.gmApi.getSession();
   renderState(state);
@@ -377,6 +408,8 @@ async function init() {
     else if (action === 'new-campaign') handleNewCampaignClick();
     else if (action === 'open-campaign') handleOpenCampaignClick();
     else if (action === 'session-needs-campaign') openSessionNeedsCampaignModal();
+    else if (action === 'save-session') handleSaveSession();
+    else if (action === 'open-session') handleOpenSession();
   });
 }
 
