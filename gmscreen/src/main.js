@@ -108,23 +108,39 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 }
 
-app.whenReady().then(() => {
-  buildMenu();
-
-  gmServer = new GmServer({ port: 4177 }).start();
-  gmServer.on('change', (state) => {
-    if (mainWindow) mainWindow.webContents.send('session:update', state);
+// Only one GMScreen can ever bind the pairing port (4177) at a time, so a
+// second launch (e.g. double-clicking the shortcut while one's already
+// running) must not try to start its own server - it just hands off to the
+// instance that's already running and quits.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
   });
-  gmServer.on('players-change', (players) => {
-    if (mainWindow) mainWindow.webContents.send('players:update', players);
-  });
 
-  createWindow();
+  app.whenReady().then(() => {
+    buildMenu();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    gmServer = new GmServer({ port: 4177 }).start();
+    gmServer.on('change', (state) => {
+      if (mainWindow) mainWindow.webContents.send('session:update', state);
+    });
+    gmServer.on('players-change', (players) => {
+      if (mainWindow) mainWindow.webContents.send('players:update', players);
+    });
+
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

@@ -61,14 +61,31 @@
     </section>
 
     <section id="page-scene" class="page">
-      <div class="scene-layout">
-        <section class="block scene-col-left">
-          <h2>Combat</h2>
-          <div class="subsection">
-            <h3>Initiative</h3>
-            <div id="initiative-list" class="initiative-list"></div>
-            <button type="button" id="add-initiative" class="add-row-btn">+ Add</button>
-          </div>
+      <nav class="scene-tabs">
+        <button type="button" class="scene-tab-btn active" data-scene-page="scene-combat">Combat</button>
+        <button type="button" class="scene-tab-btn" data-scene-page="scene-social">Social</button>
+      </nav>
+
+      <div id="scene-combat" class="scene-subpage active">
+        <div class="scene-layout">
+          <section class="block scene-col-left">
+            <div class="subsection">
+              <h3>Initiative</h3>
+              <div id="initiative-list" class="initiative-list"></div>
+              <button type="button" id="add-initiative" class="add-row-btn">+ Add</button>
+            </div>
+          </section>
+
+          <section class="block scene-col-right">
+            <p class="scene-col-heading">Act and Move in any order</p>
+            <textarea class="scene-textarea"></textarea>
+          </section>
+        </div>
+      </div>
+
+      <div id="scene-social" class="scene-subpage">
+        <section class="block">
+          <textarea class="scene-textarea"></textarea>
         </section>
       </div>
     </section>

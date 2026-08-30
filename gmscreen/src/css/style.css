@@ -92,7 +92,7 @@ button {
 main { padding: 16px; max-width: 440px; margin: 0 auto; }
 main:has(#page-campaign.active) { max-width: 800px; }
 main:has(.page-player.active) { max-width: 800px; }
-main:has(#page-scene.active) { max-width: 800px; }
+main:has(#page-scene.active) { max-width: 960px; }
 
 .block {
   background: var(--panel-bg);
@@ -389,8 +389,54 @@ main:has(#page-scene.active) { max-width: 800px; }
 .ro-trait-col h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 6px 0; }
 
 /* Scene */
+.scene-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.scene-tab-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: #eeece7;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.scene-tab-btn.active {
+  background: var(--panel-bg);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.scene-subpage { display: none; }
+.scene-subpage.active { display: block; }
+
 .scene-layout { display: flex; align-items: flex-start; gap: 16px; }
-.scene-col-left { width: 420px; flex: 0 0 auto; }
+.scene-col-left { width: 460px; flex: 0 0 auto; }
+.scene-col-right { flex: 1 1 auto; min-width: 260px; display: flex; flex-direction: column; }
+
+.scene-col-heading {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin: 0 0 8px 0;
+}
+
+.scene-textarea {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 300px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
 
 .subsection { margin-top: 4px; }
 .subsection h3 {
@@ -404,8 +450,9 @@ main:has(#page-scene.active) { max-width: 800px; }
 }
 
 .initiative-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.initiative-row { display: flex; align-items: center; gap: 8px; }
-.initiative-num { width: 36px; flex: 0 0 auto; text-align: center; padding: 6px 4px; }
+.initiative-row { display: flex; align-items: center; gap: 6px; }
+.initiative-num { width: 32px; flex: 0 0 auto; text-align: center; padding: 6px 3px; }
 .initiative-name { flex: 1 1 auto; min-width: 0; }
-.initiative-status { width: 140px; flex: 0 0 auto; padding: 6px 4px; font-size: 12px; }
+.initiative-status { width: 122px; flex: 0 0 auto; padding: 6px 3px; font-size: 12px; }
+.initiative-action { width: 100px; flex: 0 0 auto; padding: 6px 3px; font-size: 12px; }
 .remove-row { border: none; background: none; color: var(--danger); font-size: 14px; padding: 0 4px; cursor: pointer; }
