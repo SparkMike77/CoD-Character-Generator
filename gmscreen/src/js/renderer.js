@@ -241,6 +241,65 @@ function initCampaignEditor() {
   });
 }
 
+/* ---------- Scene: Combat / Initiative ---------- */
+
+// Purely in-memory, like the rest of a GM "session" (tokens, PIN) - a
+// combat's initiative order doesn't need to survive an app restart.
+let initiativeRows = [{ num: '', name: '' }];
+
+function renderInitiativeList() {
+  const container = document.getElementById('initiative-list');
+  clearEl(container);
+
+  initiativeRows.forEach((row, idx) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'initiative-row';
+
+    const numInput = document.createElement('input');
+    numInput.type = 'text';
+    numInput.inputMode = 'numeric';
+    numInput.maxLength = 2;
+    numInput.className = 'initiative-num';
+    numInput.value = row.num;
+    numInput.addEventListener('input', (e) => {
+      row.num = e.target.value.replace(/\D/g, '').slice(0, 2);
+      e.target.value = row.num;
+    });
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = 'Name';
+    nameInput.className = 'initiative-name';
+    nameInput.value = row.name;
+    nameInput.addEventListener('input', (e) => {
+      row.name = e.target.value;
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-row';
+    removeBtn.title = 'Remove';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => {
+      initiativeRows.splice(idx, 1);
+      renderInitiativeList();
+    });
+
+    rowEl.appendChild(numInput);
+    rowEl.appendChild(nameInput);
+    rowEl.appendChild(removeBtn);
+    container.appendChild(rowEl);
+  });
+}
+
+function initScene() {
+  document.getElementById('add-initiative').addEventListener('click', () => {
+    initiativeRows.push({ num: '', name: '' });
+    renderInitiativeList();
+  });
+  renderInitiativeList();
+}
+
 async function init() {
   const state = await window.gmApi.getSession();
   renderState(state);
@@ -261,6 +320,7 @@ async function init() {
 
   initTabs();
   initCampaignEditor();
+  initScene();
   initAboutModal();
   initSessionNeedsCampaignModal();
   initPlayers();
