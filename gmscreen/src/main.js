@@ -8,6 +8,7 @@ const { parseCampaignFile, serializeCampaignFile, extractChronicleName } = requi
 const { SessionStore } = require('./session-store');
 
 let mainWindow;
+let referencesWindow;
 let gmServer;
 let sessionStore;
 // filePath/campaignId/version/body: campaignId+version travel inside the
@@ -111,6 +112,43 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+  // The References window is a convenience spun off from the main window,
+  // not an independent app - closing GMScreen should take it down too
+  // rather than leaving an orphaned window (and gmServer) with no owner.
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    if (referencesWindow && !referencesWindow.isDestroyed()) referencesWindow.close();
+  });
+}
+
+// Its own top-level window, not a child/modal of mainWindow - it must stay
+// usable (and movable to a second monitor) while the GM keeps working the
+// main GMScreen window, so neither one blocks the other.
+function createReferencesWindow() {
+  if (referencesWindow && !referencesWindow.isDestroyed()) {
+    referencesWindow.show();
+    referencesWindow.focus();
+    return;
+  }
+
+  referencesWindow = new BrowserWindow({
+    width: 900,
+    height: 720,
+    minWidth: 640,
+    minHeight: 480,
+    resizable: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'references-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  referencesWindow.loadFile(path.join(__dirname, 'references.html'));
+  referencesWindow.on('closed', () => {
+    referencesWindow = null;
+  });
 }
 
 // Only one GMScreen can ever bind the pairing port (4177) at a time, so a
@@ -170,6 +208,22 @@ app.on('will-quit', () => {
 // rebuilds. unref() so this timer itself never keeps the process open.
 app.on('before-quit', () => {
   setTimeout(() => app.exit(0), 1500).unref();
+});
+
+ipcMain.handle('references:open', () => createReferencesWindow());
+
+ipcMain.handle('rules:openMarkdown', async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender) || referencesWindow;
+  const result = await dialog.showOpenDialog(owner, {
+    title: 'Open Markdown File',
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const filePath = result.filePaths[0];
+  const content = await fs.readFile(filePath, 'utf-8');
+  return { filePath, content };
 });
 
 ipcMain.handle('session:get', () => gmServer.getState());

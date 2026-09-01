@@ -64,6 +64,16 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+.references-btn {
+  margin-left: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--text);
+}
+.references-btn:hover { background: #efece6; }
+
 /* Tabs */
 .page-tabs {
   display: flex;
@@ -327,6 +337,26 @@ main:has(#page-scene.active) { max-width: 960px; }
 }
 .markdown-pane img { max-width: 100%; }
 .markdown-pane a { color: var(--accent-strong); }
+
+/* Rules panes (System Rules / Game Setting / Combat Rules tabs, References window) */
+.rules-block .block-header-row { justify-content: space-between; }
+.rules-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.file-status {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.markdown-placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+body.references-page main { max-width: 1100px; }
 
 /* Player tabs (paired Character Managers) */
 .player-blank {

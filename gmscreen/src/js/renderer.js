@@ -393,6 +393,10 @@ async function init() {
     window.gmApi.rotatePin();
   });
 
+  document.getElementById('btn-references').addEventListener('click', () => {
+    window.gmApi.openReferences();
+  });
+
   const campaign = await window.gmApi.getCampaign();
   applyCampaign(campaign);
 
