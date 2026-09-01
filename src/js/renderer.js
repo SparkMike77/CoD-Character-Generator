@@ -13,6 +13,8 @@ import {
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 import { renderMarkdown } from './markdown.js';
 import { DEFAULT_SYSTEM_RULES, DEFAULT_SYSTEM_RULES_FILENAME } from './default-system-rules.js';
+import { DEFAULT_GAME_SETTING, DEFAULT_GAME_SETTING_FILENAME } from './default-game-setting.js';
+import { DEFAULT_COMBAT_RULES, DEFAULT_COMBAT_RULES_FILENAME } from './default-combat-rules.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
@@ -1075,7 +1077,9 @@ function initRulesPane(prefix, defaultDoc) {
 
 function initRulesPanes() {
   initRulesPane('system-rules', { filename: DEFAULT_SYSTEM_RULES_FILENAME, content: DEFAULT_SYSTEM_RULES });
+  initRulesPane('game-setting', { filename: DEFAULT_GAME_SETTING_FILENAME, content: DEFAULT_GAME_SETTING });
   initRulesPane('campaign-rules');
+  initRulesPane('combat-rules', { filename: DEFAULT_COMBAT_RULES_FILENAME, content: DEFAULT_COMBAT_RULES });
 }
 
 /* ---------- GM Sessions (mDNS discovery + PIN pairing) ---------- */
