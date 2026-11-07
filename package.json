@@ -11,7 +11,8 @@
     "start": "npm run vendor && node scripts/start.js",
     "dist": "npm run vendor && electron-builder --win",
     "dist:all": "npm run dist && npm --prefix gmscreen install && npm --prefix gmscreen run dist",
-    "vendor": "node scripts/vendor-three.js ."
+    "vendor": "node scripts/vendor-three.js .",
+    "avatar-assets": "node scripts/prepare-avatar-assets.js"
   },
   "devDependencies": {
     "electron": "^31.3.1",

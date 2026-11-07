@@ -24,10 +24,6 @@ contextBridge.exposeInMainWorld('codApi', {
   forgetGmScreen: (id) => ipcRenderer.invoke('gmscreen:forget', id),
   sendCharacterToGm: (id, character) => ipcRenderer.invoke('gmscreen:sendCharacter', { id, character }),
 
-  listAvatarModels: () => ipcRenderer.invoke('avatar:list'),
-  getAvatarModel: (hash) => ipcRenderer.invoke('avatar:get', hash),
-  importAvatarModel: () => ipcRenderer.invoke('avatar:import'),
-  removeAvatarModel: (hash) => ipcRenderer.invoke('avatar:remove', hash),
   setCurrentAvatar: (avatar) => ipcRenderer.invoke('avatar:setCurrent', avatar),
 
   listCampaigns: () => ipcRenderer.invoke('campaigns:list'),

@@ -5,10 +5,10 @@
 // Why not just load from node_modules: electron-builder silently strips any
 // `examples/` folder inside node_modules from packaged builds (it treats
 // them as demo code, and an explicit `files` include doesn't override it).
-// three's loaders and OrbitControls live in three/examples/jsm/, so a
-// packaged app would load the core and then fail on every addon import -
-// while `npm start` worked fine. Vendoring sidesteps that entirely, and
-// three only has to be a devDependency.
+// three's OrbitControls (and loaders, if ever needed) live in
+// three/examples/jsm/, so a packaged app would load the core and then fail
+// on every addon import - while `npm start` worked fine. Vendoring sidesteps
+// that entirely, and three only has to be a devDependency.
 //
 // Starts from the entry files below and follows their relative imports, so
 // it copies only what's reachable (not three's whole 20 MB package), with
@@ -24,9 +24,8 @@ const path = require('path');
 const ENTRIES = [
   'build/three.module.js',
   'examples/jsm/controls/OrbitControls.js',
-  'examples/jsm/loaders/STLLoader.js',
-  'examples/jsm/loaders/OBJLoader.js',
-  'examples/jsm/loaders/GLTFLoader.js'
+  'examples/jsm/loaders/GLTFLoader.js',
+  'examples/jsm/utils/SkeletonUtils.js'
 ];
 
 const appDir = path.resolve(process.argv[2] || '.');

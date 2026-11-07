@@ -80,7 +80,7 @@ function mergeCharacter(loaded) {
     health: { ...base.health, ...(loaded.health || {}) },
     willpower: { ...base.willpower, ...(loaded.willpower || {}) },
     resource: { ...base.resource, ...(loaded.resource || {}) },
-    avatar: { ...base.avatar, ...(loaded.avatar || {}) },
+    avatar: loaded.avatar || null, // normalized by avatarCharacterLoaded()
     description: { ...base.description, ...(loaded.description || {}) },
     equipment: loaded.equipment && loaded.equipment.length ? loaded.equipment : base.equipment,
     combat: loaded.combat && loaded.combat.length ? loaded.combat : base.combat

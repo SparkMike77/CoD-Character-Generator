@@ -44,29 +44,30 @@
     <aside id="avatar-panel" class="avatar-panel">
       <section class="block avatar-block">
         <h2>Avatar</h2>
-        <div id="avatar-viewport" class="avatar-viewport">
-          <div id="avatar-message" class="avatar-message hidden"></div>
-        </div>
+        <div id="avatar-viewport" class="avatar-viewport"></div>
         <div id="avatar-name" class="avatar-name"></div>
 
-        <label class="avatar-field">
-          <span>Model</span>
-          <select id="avatar-model-select"></select>
-        </label>
-        <div class="avatar-actions">
-          <button type="button" id="avatar-import-btn" class="add-row-btn">Import Model...</button>
-          <button type="button" id="avatar-remove-btn" class="gmscreen-link-btn" title="Remove this imported model from your library">Remove</button>
+        <!-- Options are filled from avatar-parts.js (GENDERS / HEADS / LIMB_STATES). -->
+        <div class="avatar-fields">
+          <label class="avatar-field"><span>Body</span><select id="avatar-gender"></select></label>
+          <label class="avatar-field"><span>Head</span><select id="avatar-head"></select></label>
         </div>
-
-        <label class="avatar-field avatar-color-field">
-          <span>Color</span>
-          <input type="color" id="avatar-color" />
-        </label>
+        <div class="avatar-fields">
+          <label class="avatar-field"><span>Left Arm</span><select data-avatar-limb="leftArm"></select></label>
+          <label class="avatar-field"><span>Right Arm</span><select data-avatar-limb="rightArm"></select></label>
+          <label class="avatar-field"><span>Left Leg</span><select data-avatar-limb="leftLeg"></select></label>
+          <label class="avatar-field"><span>Right Leg</span><select data-avatar-limb="rightLeg"></select></label>
+        </div>
+        <div class="avatar-colors">
+          <label class="avatar-color-field"><span>Skin</span><input type="color" data-avatar-color="skin" /></label>
+          <label class="avatar-color-field"><span>Hair</span><input type="color" data-avatar-color="hair" /></label>
+          <label class="avatar-color-field"><span>Outfit</span><input type="color" data-avatar-color="outfit" /></label>
+        </div>
         <label class="avatar-check">
           <input type="checkbox" id="avatar-spin" checked />
           <span>Turntable spin</span>
         </label>
-        <p class="hint">Drag to rotate, scroll to zoom. Import STL, OBJ, or GLB files.</p>
+        <p class="hint">Drag to rotate, scroll to zoom. Left and right are the character's own.</p>
       </section>
     </aside>
 

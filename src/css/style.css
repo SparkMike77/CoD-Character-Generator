@@ -789,19 +789,6 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
 }
 .avatar-viewport:active { cursor: grabbing; }
 .avatar-canvas { display: block; width: 100%; height: 100%; }
-.avatar-message {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-.avatar-message.hidden { display: none; }
 .avatar-name {
   margin: 8px 0 10px;
   text-align: center;
@@ -811,25 +798,36 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.avatar-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  margin-bottom: 8px;
+}
 .avatar-field {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.avatar-field select { width: 100%; }
+.avatar-colors {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.avatar-color-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   font-size: 11px;
   color: var(--text-muted);
 }
-.avatar-field select { width: 100%; }
-.avatar-color-field { flex-direction: row; align-items: center; justify-content: space-between; }
-.avatar-color-field input[type="color"] { width: 48px; height: 26px; padding: 1px 2px; }
-.avatar-color-field input[type="color"]:disabled { opacity: 0.4; }
-.avatar-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-.avatar-actions .gmscreen-link-btn:disabled { visibility: hidden; }
+.avatar-color-field input[type="color"] { width: 44px; height: 24px; padding: 1px 2px; }
 .avatar-check {
   display: flex;
   align-items: center;

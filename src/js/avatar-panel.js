@@ -1,12 +1,15 @@
 // The Avatar column on the left of the character sheet: a 3D viewer plus
-// model/color pickers. Owns character.avatar = { modelHash, modelName,
-// format, color }, where modelHash null means "the library's default
-// model" - so a brand-new character always shows something.
+// part pickers (body type, head, each limb's state) and colors. Owns
+// character.avatar - a parts descriptor, see AVATAR_DEFAULT in
+// avatar-parts.js.
 //
 // Every change is also handed to the main process (setCurrentAvatar), which
 // keeps the latest avatar and pushes it to every GMScreen this player is
-// connected to - that's what feeds the GM's Roster page.
+// connected to - that's what feeds the GM's Roster page. GMScreen rebuilds
+// the same figure from the descriptor, so nothing but that small JSON is
+// ever sent.
 import { AvatarViewer } from './avatar-view.js';
+import { GENDERS, HEADS, LIMB_STATES, normalizeAvatar } from './avatar-parts.js';
 
 const NAME_SYNC_DEBOUNCE_MS = 600;
 const SPIN_PREF_KEY = 'avatar.spin';
@@ -14,18 +17,14 @@ const SPIN_PREF_KEY = 'avatar.spin';
 let viewer = null;
 let getCharacter = () => null;
 let markDirty = () => {};
-let models = []; // [{ hash, name, format, builtin }]
-let shownHash = null;
 let nameSyncTimer = null;
 
 const el = (id) => document.getElementById(id);
+const limbSelects = () => document.querySelectorAll('[data-avatar-limb]');
+const colorInputs = () => document.querySelectorAll('[data-avatar-color]');
 
 function avatar() {
   return getCharacter().avatar;
-}
-
-function resolvedHash() {
-  return avatar().modelHash || (models[0] && models[0].hash) || null;
 }
 
 function readSpinPref() {
@@ -44,83 +43,25 @@ function writeSpinPref(on) {
   }
 }
 
-function showMessage(text) {
-  const msg = el('avatar-message');
-  msg.textContent = text || '';
-  msg.classList.toggle('hidden', !text);
-}
-
-function renderModelSelect() {
-  const select = el('avatar-model-select');
-  while (select.firstChild) select.removeChild(select.firstChild);
-
-  const addGroup = (label, items) => {
-    if (!items.length) return;
-    const group = document.createElement('optgroup');
-    group.label = label;
-    items.forEach((m) => {
-      const opt = document.createElement('option');
-      opt.value = m.hash;
-      opt.textContent = m.name;
-      group.appendChild(opt);
-    });
-    select.appendChild(group);
-  };
-  addGroup('Built-in', models.filter((m) => m.builtin));
-  addGroup('Imported', models.filter((m) => !m.builtin));
-
-  // A character made elsewhere can reference a model this library doesn't
-  // have - keep it visible (and selected) rather than silently swapping it.
-  const hash = resolvedHash();
-  if (hash && !models.some((m) => m.hash === hash)) {
+function fillSelect(select, options) {
+  options.forEach(({ id, label }) => {
     const opt = document.createElement('option');
-    opt.value = hash;
-    opt.textContent = `${avatar().modelName || 'Unknown model'} (missing)`;
+    opt.value = id;
+    opt.textContent = label;
     select.appendChild(opt);
-  }
-  select.value = hash || '';
-
-  const current = models.find((m) => m.hash === hash);
-  el('avatar-remove-btn').disabled = !current || current.builtin;
+  });
 }
 
-function renderColorControl() {
-  const input = el('avatar-color');
-  input.value = avatar().color;
-  const format = (models.find((m) => m.hash === resolvedHash()) || {}).format || avatar().format;
-  const isGlb = format === 'glb';
-  input.disabled = isGlb;
-  el('avatar-color').closest('label').title = isGlb ? 'GLB models use their own colors and textures.' : '';
-}
-
-async function showCurrentModel({ force = false } = {}) {
-  const hash = resolvedHash();
-  viewer.setColor(avatar().color);
-  if (!hash) {
-    viewer.clear();
-    shownHash = null;
-    showMessage('No models in your library yet. Import an STL, OBJ, or GLB file.');
-    return;
-  }
-  if (hash === shownHash && !force) return;
-
-  const model = await window.codApi.getAvatarModel(hash);
-  if (hash !== resolvedHash()) return; // selection changed while loading
-  if (!model) {
-    viewer.clear();
-    shownHash = hash;
-    showMessage(`This character's model "${avatar().modelName || 'Unknown'}" isn't in your library. Import it, or pick another model.`);
-    return;
-  }
-  try {
-    await viewer.setModel({ format: model.format, data: model.data });
-    shownHash = hash;
-    showMessage('');
-  } catch (err) {
-    viewer.clear();
-    shownHash = null;
-    showMessage(`Couldn't display "${model.name}": ${err.message || err}`);
-  }
+function renderControls() {
+  const a = avatar();
+  el('avatar-gender').value = a.gender;
+  el('avatar-head').value = a.head;
+  limbSelects().forEach((select) => {
+    select.value = a.limbs[select.dataset.avatarLimb];
+  });
+  colorInputs().forEach((input) => {
+    input.value = a[input.dataset.avatarColor];
+  });
 }
 
 function renderName() {
@@ -128,67 +69,31 @@ function renderName() {
   el('avatar-name').textContent = name || 'Unnamed character';
 }
 
-// What GMScreen's Roster shows for this player. Sends the resolved hash, not
-// null, since GMScreen has no idea what this library's default model is.
+function showAvatar(descriptor) {
+  viewer.setAvatar(descriptor).catch((err) => console.error('Avatar build failed:', err));
+}
+
 function syncToGm() {
-  const hash = resolvedHash();
-  const model = models.find((m) => m.hash === hash);
-  window.codApi.setCurrentAvatar({
-    name: (getCharacter().meta.name || '').trim(),
-    modelHash: hash,
-    modelName: model ? model.name : avatar().modelName,
-    format: model ? model.format : avatar().format,
-    color: avatar().color
-  });
+  window.codApi.setCurrentAvatar({ name: (getCharacter().meta.name || '').trim(), ...avatar() });
 }
 
-async function refreshLibrary() {
-  models = await window.codApi.listAvatarModels();
-  renderModelSelect();
-  renderColorControl();
-}
-
-function selectModel(hash) {
-  const model = models.find((m) => m.hash === hash);
-  if (!model) return;
-  Object.assign(avatar(), { modelHash: model.hash, modelName: model.name, format: model.format });
+// A part/state picker changed: persist it, redraw, tell the GM.
+function commit() {
   markDirty();
-  renderModelSelect();
-  renderColorControl();
-  showCurrentModel();
-  syncToGm();
-}
-
-async function handleImport() {
-  const result = await window.codApi.importAvatarModel();
-  if (!result) return; // dialog cancelled
-  if (!result.ok) {
-    window.alert(result.error);
-    return;
-  }
-  await refreshLibrary();
-  selectModel(result.model.hash);
-}
-
-async function handleRemove() {
-  const hash = resolvedHash();
-  const model = models.find((m) => m.hash === hash);
-  if (!model || model.builtin) return;
-  if (!window.confirm(`Remove "${model.name}" from your avatar library? Characters using it will show the default model until you pick another.`)) return;
-  await window.codApi.removeAvatarModel(hash);
-  Object.assign(avatar(), { modelHash: null, modelName: '', format: '' });
-  markDirty();
-  await refreshLibrary();
-  await showCurrentModel();
+  showAvatar(avatar());
   syncToGm();
 }
 
 // Call whenever the character object is replaced (New / Open / startup).
-export async function avatarCharacterLoaded() {
+export function avatarCharacterLoaded() {
   if (!viewer) return;
+  const character = getCharacter();
+  // Normalizing here is what migrates older files: characters saved with
+  // the earlier imported-model avatar (or none) get a default parts avatar.
+  character.avatar = normalizeAvatar(character.avatar);
   renderName();
-  await refreshLibrary();
-  await showCurrentModel({ force: true });
+  renderControls();
+  showAvatar(character.avatar);
   syncToGm();
 }
 
@@ -196,20 +101,37 @@ export function initAvatarPanel(options) {
   getCharacter = options.getCharacter;
   markDirty = options.markDirty;
 
+  fillSelect(el('avatar-gender'), GENDERS);
+  fillSelect(el('avatar-head'), HEADS);
+  limbSelects().forEach((select) => fillSelect(select, LIMB_STATES));
+
   const spin = readSpinPref();
   el('avatar-spin').checked = spin;
   viewer = new AvatarViewer(el('avatar-viewport'), { autoRotate: spin });
 
-  el('avatar-model-select').addEventListener('change', (e) => selectModel(e.target.value));
-  el('avatar-import-btn').addEventListener('click', handleImport);
-  el('avatar-remove-btn').addEventListener('click', handleRemove);
+  el('avatar-gender').addEventListener('change', (e) => {
+    avatar().gender = e.target.value;
+    commit();
+  });
+  el('avatar-head').addEventListener('change', (e) => {
+    avatar().head = e.target.value;
+    commit();
+  });
+  limbSelects().forEach((select) => {
+    select.addEventListener('change', () => {
+      avatar().limbs[select.dataset.avatarLimb] = select.value;
+      commit();
+    });
+  });
 
-  const colorInput = el('avatar-color');
-  colorInput.addEventListener('input', () => viewer.setColor(colorInput.value)); // live preview while dragging
-  colorInput.addEventListener('change', () => {
-    avatar().color = colorInput.value;
-    markDirty();
-    syncToGm();
+  colorInputs().forEach((input) => {
+    const key = input.dataset.avatarColor;
+    // Live preview while dragging; only the final pick marks dirty/syncs.
+    input.addEventListener('input', () => showAvatar({ ...avatar(), [key]: input.value }));
+    input.addEventListener('change', () => {
+      avatar()[key] = input.value;
+      commit();
+    });
   });
 
   el('avatar-spin').addEventListener('change', (e) => {

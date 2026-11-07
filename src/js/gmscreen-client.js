@@ -5,7 +5,6 @@ const { Bonjour } = require('bonjour-service');
 
 const MDNS_TYPE = 'gmscreen';
 const REQUEST_TIMEOUT_MS = 5000;
-const MODEL_UPLOAD_TIMEOUT_MS = 60000;
 const CHARACTER_REQUEST_POLL_MS = 2000;
 
 // Prefers a routable IPv4 address advertised by the service over Windows'
@@ -51,49 +50,19 @@ function requestJson(host, port, method, urlPath, { body, token } = {}) {
   });
 }
 
-// Raw-bytes POST for avatar model uploads - kept separate from requestJson
-// so a multi-megabyte model never has to be base64'd into a JSON body.
-function requestBinary(host, port, urlPath, bytes, { token, headers = {} } = {}) {
-  return new Promise((resolve) => {
-    const req = http.request(
-      {
-        host,
-        port,
-        method: 'POST',
-        path: urlPath,
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': bytes.length,
-          Authorization: `Bearer ${token}`,
-          ...headers
-        },
-        timeout: MODEL_UPLOAD_TIMEOUT_MS
-      },
-      (res) => {
-        res.resume();
-        res.on('end', () => resolve({ status: res.statusCode }));
-      }
-    );
-    req.on('timeout', () => req.destroy(new Error('Upload timed out')));
-    req.on('error', (err) => resolve({ status: 0, error: err.message }));
-    req.end(bytes);
-  });
-}
-
 // Renderer-side discovery is impossible under this app's CSP/contextIsolation
 // setup, so the main process owns both the mDNS browser and the pairing HTTP
 // calls; the renderer only ever sees normalized IPC events/results.
 class GmScreenClient extends EventEmitter {
-  constructor({ storagePath, campaignStore, avatarLibrary }) {
+  constructor({ storagePath, campaignStore }) {
     super();
     this.storagePath = storagePath;
     this.campaignStore = campaignStore;
-    this.avatarLibrary = avatarLibrary;
     this.bonjour = null;
     this.browser = null;
     this.live = new Map(); // id -> { id, name, host, port }
     this.pollTimers = new Map(); // gmscreen id -> interval handle (doubles as "connected" set)
-    this.currentAvatar = null; // latest { name, modelHash, modelName, format, color } from the renderer
+    this.currentAvatar = null; // latest { name, ...parts descriptor } from the renderer
     this.avatarPushChains = new Map(); // gmscreen id -> promise, so pushes to one GM never overlap
   }
 
@@ -167,9 +136,8 @@ class GmScreenClient extends EventEmitter {
     for (const id of this.pollTimers.keys()) this._queueAvatarPush(id);
   }
 
-  // Serialized per GMScreen: a burst of changes (dragging through models)
-  // runs one push at a time, so a model GMScreen asked for is uploaded once
-  // and the next push already sees it cached there.
+  // Serialized per GMScreen so a burst of changes arrives in order (the
+  // last one sent is always the newest).
   _queueAvatarPush(id) {
     const prev = this.avatarPushChains.get(id) || Promise.resolve();
     const next = prev.then(() => this._pushAvatar(id)).catch(() => {});
@@ -177,29 +145,15 @@ class GmScreenClient extends EventEmitter {
     return next;
   }
 
-  // Two steps: a small JSON descriptor, and - only if GMScreen replies that
-  // it doesn't already have that model's bytes - a one-time binary upload.
-  // GMScreen caches models by content hash, so switching back to a model
-  // it's seen before (from any player) costs nothing.
+  // Just the parts descriptor - GMScreen assembles the same figure from it
+  // with its copy of avatar-parts.js, so no model data is ever sent.
   async _pushAvatar(id) {
     const avatar = this.currentAvatar;
     if (!avatar) return;
     const connections = await this._loadConnections();
     const entry = connections[id];
     if (!entry) return;
-
-    const { status, data } = await requestJson(entry.host, entry.port, 'POST', '/avatar', {
-      token: entry.token,
-      body: { avatar }
-    });
-    if (status !== 200 || !data.needModel || !avatar.modelHash) return;
-
-    const model = await this.avatarLibrary.getModel(avatar.modelHash);
-    if (!model) return; // character references a model this machine doesn't have
-    await requestBinary(entry.host, entry.port, '/avatar-model', model.data, {
-      token: entry.token,
-      headers: { 'X-Model-Hash': model.hash, 'X-Model-Format': model.format }
-    });
+    await requestJson(entry.host, entry.port, 'POST', '/avatar', { token: entry.token, body: { avatar } });
   }
 
   async sendCharacter(id, characterData) {

@@ -546,9 +546,7 @@ body.references-page main { max-width: 1100px; }
   max-width: 100%;
   font-size: 11px;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: center;
 }
 .roster-open-btn {
   margin-top: 6px;

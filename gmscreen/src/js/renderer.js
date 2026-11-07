@@ -1,6 +1,7 @@
 import { renderMarkdown } from './markdown.js';
 import { renderCharacterSheet } from './character-view.js';
 import { AvatarViewer } from './avatar-view.js';
+import { LIMBS, LIMB_STATES } from './avatar-parts.js';
 
 let renameTimer = null;
 let currentCampaignPath = null;
@@ -109,9 +110,9 @@ function renderPlayerPage(page, player) {
 // for plain HTML), roster cards are long-lived: each owns a WebGL viewer,
 // and players-change fires constantly (every avatar push, name keystroke
 // batch, character send). So cards are created once per player and only
-// patched - a model is (re)loaded only when that player's model hash
+// patched - the figure is rebuilt only when that player's parts descriptor
 // actually changes, never just because something else updated.
-const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, shownHash, loadingHash }
+const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, shownKey }
 
 function rosterDisplayName(player) {
   return (player.avatar && player.avatar.name) || (player.character && player.name) || `Player${player.slot}`;
@@ -144,7 +145,7 @@ function createRosterCard(player) {
   card.appendChild(openBtn);
   document.getElementById('roster-grid').appendChild(card);
 
-  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, shownHash: null, loadingHash: null };
+  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, shownKey: null };
   rosterCards.set(player.id, entry);
   return entry;
 }
@@ -154,44 +155,41 @@ function setRosterMessage(entry, text) {
   entry.msgEl.classList.toggle('hidden', !text);
 }
 
-async function updateRosterCard(entry, player) {
+// "L.Arm damaged · R.Leg morphed" - only limbs that aren't healthy, so a
+// glance at the roster shows who's hurt or changed without rotating models.
+function limbSummary(avatar) {
+  const short = { leftArm: 'L.Arm', rightArm: 'R.Arm', leftLeg: 'L.Leg', rightLeg: 'R.Leg' };
+  const stateLabel = Object.fromEntries(LIMB_STATES.map((st) => [st.id, st.label.toLowerCase()]));
+  return LIMBS.filter(({ id }) => avatar.limbs[id] !== 'healthy')
+    .map(({ id }) => `${short[id]} ${stateLabel[avatar.limbs[id]]}`)
+    .join(' · ');
+}
+
+function updateRosterCard(entry, player) {
   const avatar = player.avatar;
   entry.nameEl.textContent = rosterDisplayName(player);
-  entry.metaEl.textContent = [`Player${player.slot}`, avatar && avatar.modelName].filter(Boolean).join(' · ');
 
-  if (!avatar || !avatar.modelHash) {
+  if (!avatar) {
+    entry.metaEl.textContent = `Player${player.slot}`;
     entry.viewer.clear();
-    entry.shownHash = null;
+    entry.shownKey = null;
     setRosterMessage(entry, 'Waiting for avatar...');
     return;
   }
-  entry.viewer.setColor(avatar.color);
+  entry.metaEl.textContent = [`Player${player.slot}`, limbSummary(avatar)].filter(Boolean).join(' · ');
 
-  if (avatar.modelHash === entry.shownHash || avatar.modelHash === entry.loadingHash) return;
-  if (!avatar.modelAvailable) {
-    // Descriptor arrived, bytes still uploading - the upload's own
-    // players-change will bring us back here with modelAvailable true.
-    setRosterMessage(entry, entry.shownHash ? '' : 'Receiving model...');
-    return;
-  }
-
-  const hash = avatar.modelHash;
-  entry.loadingHash = hash;
-  try {
-    const model = await window.gmApi.getAvatarModel(hash);
-    if (entry.loadingHash !== hash) return; // superseded by a newer change mid-load
-    if (!model) {
-      setRosterMessage(entry, 'Model unavailable.');
-      return;
+  // name/updatedAt change without the figure changing - key on the parts only.
+  const { name, updatedAt, ...parts } = avatar;
+  const key = JSON.stringify(parts);
+  if (key === entry.shownKey) return;
+  entry.shownKey = key; // set now, so a poll arriving mid-build doesn't restart it
+  entry.viewer.setAvatar(parts).then(
+    () => setRosterMessage(entry, ''),
+    (err) => {
+      entry.shownKey = null; // let the next poll retry
+      setRosterMessage(entry, `Couldn't display avatar: ${err.message || err}`);
     }
-    await entry.viewer.setModel(model);
-    entry.shownHash = hash;
-    setRosterMessage(entry, '');
-  } catch (err) {
-    setRosterMessage(entry, `Couldn't display model: ${err.message || err}`);
-  } finally {
-    if (entry.loadingHash === hash) entry.loadingHash = null;
-  }
+  );
 }
 
 function renderRoster(players) {

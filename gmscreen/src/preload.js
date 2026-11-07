@@ -10,7 +10,6 @@ contextBridge.exposeInMainWorld('gmApi', {
   },
   getPlayers: () => ipcRenderer.invoke('players:get'),
   requestCharacter: (playerId) => ipcRenderer.invoke('players:request', playerId),
-  getAvatarModel: (hash) => ipcRenderer.invoke('roster:model', hash),
   onPlayersUpdate: (callback) => {
     ipcRenderer.on('players:update', (_event, players) => callback(players));
   },

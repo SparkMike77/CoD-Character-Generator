@@ -337,11 +337,11 @@ function defaultCharacter() {
     experience: 0,
     armor: '',
     sizeCategory: 'average',
-    // 3D avatar, by content hash into the player's avatar library (see
-    // avatar-library.js). modelHash null = the library's default model.
-    // modelName/format are cached so a character opened on a machine that
-    // lacks the model can still say what's missing.
-    avatar: { modelHash: null, modelName: '', format: '', color: '#b9a68d' },
+    // 3D avatar parts descriptor - { gender, head, skin, hair, outfit,
+    // limbs: { leftArm, rightArm, leftLeg, rightLeg } }. null here; the
+    // avatar panel fills it via normalizeAvatar() (avatar-parts.js) when
+    // the character is loaded, which also migrates older/invalid values.
+    avatar: null,
     description: {
       age: '', hair: '', eyes: '', sex: '',
       height: '', weight: '', race: 'Human', nationality: '',

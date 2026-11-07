@@ -1,34 +1,27 @@
-// 3D avatar viewer: renders one STL / OBJ / GLB model in a container, with
-// drag-to-orbit, wheel zoom, and a slow turntable spin when idle.
+// 3D avatar viewer: renders one parts-assembled avatar (see avatar-parts.js)
+// in a container, with drag-to-orbit, wheel zoom, and a slow turntable spin
+// when idle.
 //
-// SHARED FILE: an identical copy lives at gmscreen/src/js/avatar-view.js.
-// The two apps are packaged separately with no shared module boundary (same
-// reason character-view.js is a hand-kept copy), so edit both together.
+// SHARED FILE: identical copies of this and avatar-parts.js live in
+// gmscreen/src/js/. The two apps are packaged separately with no shared
+// module boundary (same reason character-view.js is a hand-kept copy), so
+// edit both together.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { STLLoader } from 'three/addons/loaders/STLLoader.js';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildAvatar } from './avatar-parts.js';
 
-const MODEL_HEIGHT = 2; // every model is normalized to this many scene units tall
+const MODEL_HEIGHT = 2; // the figure is normalized to this many scene units tall
 const IDLE_RESUME_SPIN_MS = 3000;
-const DEFAULT_COLOR = '#b9a68d';
 
-function toArrayBuffer(data) {
-  if (data instanceof ArrayBuffer) return data;
-  // Uint8Array / Node Buffer arriving over IPC: copy out exactly its bytes,
-  // since its underlying buffer may be a larger shared pool.
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-}
-
+// Frees only what one build created (flagged by avatar-parts.js). Template
+// geometry and textures are shared through its cache - by every figure in
+// every viewer, e.g. all of GMScreen's roster cards - so they're never
+// disposed here.
 function disposeObject(root) {
   root.traverse((node) => {
-    if (node.geometry) node.geometry.dispose();
+    if (node.geometry && node.geometry.userData.ownGeometry) node.geometry.dispose();
     const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
-    materials.forEach((m) => {
-      Object.values(m).forEach((v) => v && v.isTexture && v.dispose());
-      m.dispose();
-    });
+    materials.forEach((m) => m.userData.ownMaterial && m.dispose());
   });
 }
 
@@ -36,8 +29,7 @@ export class AvatarViewer {
   constructor(container, { autoRotate = true } = {}) {
     this.container = container;
     this.model = null;
-    this.tintMaterial = new THREE.MeshStandardMaterial({ color: DEFAULT_COLOR, roughness: 0.55, metalness: 0.05 });
-    this.tintable = true;
+    this._buildSeq = 0;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -129,64 +121,45 @@ export class AvatarViewer {
     this.controls.update();
   }
 
-  async _parse(format, data) {
-    if (format === 'stl') {
-      const geometry = new STLLoader().parse(toArrayBuffer(data));
-      // STLs from CAD tools and printing sites are almost universally Z-up;
-      // three.js is Y-up.
-      geometry.rotateX(-Math.PI / 2);
-      if (!geometry.getAttribute('normal')) geometry.computeVertexNormals();
-      return new THREE.Mesh(geometry, this.tintMaterial);
+  // Rebuilds the figure from a descriptor ({ gender, head, colors, limbs }).
+  // The first build loads the body templates; after that a rebuild is quick
+  // enough to do on every change, including live while a color picker is
+  // being dragged. Builds can overlap, so only the newest one is shown.
+  async setAvatar(descriptor) {
+    const seq = ++this._buildSeq;
+    const figure = await buildAvatar(descriptor);
+    if (seq !== this._buildSeq) {
+      disposeObject(figure); // superseded (or cleared) while it was building
+      return;
     }
-    if (format === 'obj') {
-      const group = new OBJLoader().parse(new TextDecoder().decode(toArrayBuffer(data)));
-      // OBJs imported on their own have no material library, so give every
-      // part the tintable material rather than OBJLoader's grey default.
-      group.traverse((node) => {
-        if (node.isMesh) {
-          if (node.material) [].concat(node.material).forEach((m) => m.dispose());
-          node.material = this.tintMaterial;
-        }
-      });
-      return group;
-    }
-    if (format === 'glb') {
-      const gltf = await new GLTFLoader().parseAsync(toArrayBuffer(data), '');
-      return gltf.scene;
-    }
-    throw new Error(`Unsupported model format "${format}"`);
-  }
-
-  // data: ArrayBuffer | Uint8Array of the model file's bytes.
-  async setModel({ format, data }) {
-    const object = await this._parse(format, data);
-    this.clear();
+    // Always drawn in full, so skip per-mesh frustum culling (a skinned
+    // mesh's bounds are computed in the pose it was first seen in).
+    figure.traverse((n) => { n.frustumCulled = false; });
+    this._removeModel();
 
     // Normalize: MODEL_HEIGHT tall, centred on the turntable axis, feet on
-    // the ground - imported models arrive in wildly different units/origins.
+    // the ground.
     const wrapper = new THREE.Group();
-    wrapper.add(object);
+    wrapper.add(figure);
     let box = new THREE.Box3().setFromObject(wrapper);
     const size = box.getSize(new THREE.Vector3());
-    const scale = MODEL_HEIGHT / Math.max(size.y, size.x * 0.6, size.z * 0.6, 1e-6);
-    object.scale.multiplyScalar(scale);
+    figure.scale.multiplyScalar(MODEL_HEIGHT / Math.max(size.y, 1e-6));
     box = new THREE.Box3().setFromObject(wrapper);
     const center = box.getCenter(new THREE.Vector3());
-    object.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
+    figure.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
     box = new THREE.Box3().setFromObject(wrapper);
 
     const footprint = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
     this.shadow.scale.setScalar(Math.max(footprint * 0.75, 0.4));
 
     this.model = wrapper;
-    this.tintable = format !== 'glb';
     this.scene.add(wrapper);
-    this._frame(box);
-  }
-
-  // Applies to STL/OBJ only - GLB models keep their own materials/textures.
-  setColor(hex) {
-    this.tintMaterial.color.set(hex || DEFAULT_COLOR);
+    // Keep the camera where the user left it when only a part or color
+    // changed; frame afresh on the first build.
+    if (!this._framedOnce) {
+      this._frame(box);
+      this._framedOnce = true;
+    }
   }
 
   setAutoRotate(enabled) {
@@ -195,13 +168,13 @@ export class AvatarViewer {
   }
 
   clear() {
+    this._buildSeq++; // a build still in flight must not appear after a clear
+    this._removeModel();
+  }
+
+  _removeModel() {
     if (!this.model) return;
     this.scene.remove(this.model);
-    // The shared tint material outlives any one model; dispose everything
-    // else the old model owned (its geometry, and a GLB's own materials).
-    this.model.traverse((node) => {
-      if (node.material === this.tintMaterial) node.material = null;
-    });
     disposeObject(this.model);
     this.model = null;
   }
@@ -211,7 +184,6 @@ export class AvatarViewer {
     this.renderer.setAnimationLoop(null);
     this._resizeObserver.disconnect();
     this.clear();
-    this.tintMaterial.dispose();
     this.shadow.geometry.dispose();
     this.shadow.material.dispose();
     this.controls.dispose();

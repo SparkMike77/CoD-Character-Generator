@@ -11,13 +11,14 @@ const MAX_PLAYER_SLOTS = 9;
 // JSON bodies: a full character with long History/Description text can be
 // well past the old 10 KB cap (which silently dropped the request).
 const MAX_JSON_BODY_BYTES = 2 * 1024 * 1024;
-const MAX_MODEL_BYTES = 25 * 1024 * 1024;
-// Uploaded avatar models are held in memory for the run. Once the cache
-// passes this, models no player currently uses are dropped (a player who
-// switches back to one just re-uploads it).
-const MODEL_CACHE_SOFT_LIMIT_BYTES = 150 * 1024 * 1024;
-const MODEL_FORMATS = new Set(['stl', 'obj', 'glb']);
-const HASH_RE = /^[0-9a-f]{64}$/;
+// Avatar part ids - must match GENDERS / HEADS / LIMB_STATES / LIMBS in
+// src/js/avatar-parts.js (this is CommonJS in the main process, so it
+// can't import that ES module directly).
+const AVATAR_GENDERS = ['male', 'female', 'nonbinary'];
+const AVATAR_HEADS = ['bald', 'buzzed', 'parted', 'long', 'buns'];
+const AVATAR_LIMB_STATES = ['healthy', 'damaged', 'morphed'];
+const AVATAR_LIMBS = ['leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 function generatePin() {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
@@ -58,36 +59,21 @@ function readJsonBody(req) {
   });
 }
 
-function readRawBody(req, maxBytes) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let total = 0;
-    req.on('data', (chunk) => {
-      total += chunk.length;
-      if (total > maxBytes) {
-        reject(new Error('Body too large'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
-}
-
 // Only the fields the Roster needs, type-checked - this arrives from the
 // network, so nothing else a client sends is kept or echoed back.
 function sanitizeAvatar(raw) {
   const a = raw && typeof raw === 'object' ? raw : {};
-  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
-  const hash = typeof a.modelHash === 'string' && HASH_RE.test(a.modelHash) ? a.modelHash : null;
+  const oneOf = (v, options, fallback) => (options.includes(v) ? v : fallback);
+  const color = (v, fallback) => (typeof v === 'string' && HEX_COLOR_RE.test(v) ? v : fallback);
+  const limbs = a.limbs && typeof a.limbs === 'object' ? a.limbs : {};
   return {
-    name: str(a.name, 120),
-    modelHash: hash,
-    modelName: str(a.modelName, 120),
-    format: MODEL_FORMATS.has(a.format) ? a.format : '',
-    color: typeof a.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(a.color) ? a.color : '#b9a68d',
+    name: typeof a.name === 'string' ? a.name.slice(0, 120) : '',
+    gender: oneOf(a.gender, AVATAR_GENDERS, 'nonbinary'),
+    head: oneOf(a.head, AVATAR_HEADS, 'parted'),
+    skin: color(a.skin, '#c99a78'),
+    hair: color(a.hair, '#3b2a1e'),
+    outfit: color(a.outfit, '#4d5866'),
+    limbs: Object.fromEntries(AVATAR_LIMBS.map((id) => [id, oneOf(limbs[id], AVATAR_LIMB_STATES, 'healthy')])),
     updatedAt: Date.now()
   };
 }
@@ -115,10 +101,6 @@ class GmServer extends EventEmitter {
     // same as tokens/PIN, since a restart already forces everyone to re-pair.
     this.tokens = new Map(); // token -> { pairedAt, slot, name, character, pendingRequest, avatar }
     this.nextSlot = 1;
-    // Avatar models players have uploaded, keyed by SHA-256 of the bytes
-    // (verified on upload) - shared across players, so two players using
-    // the same model costs one upload and one copy.
-    this.models = new Map(); // hash -> { format, data: Buffer, lastUsed }
     this.attempts = new Map(); // remoteAddress -> { count, lockUntil }
     this.campaign = null; // { campaignId, version, chronicle, body } | null
     this.bonjour = null;
@@ -189,28 +171,9 @@ class GmServer extends EventEmitter {
         name: t.name,
         character: t.character,
         pendingRequest: t.pendingRequest,
-        avatar: t.avatar ? { ...t.avatar, modelAvailable: !!(t.avatar.modelHash && this.models.has(t.avatar.modelHash)) } : null
+        avatar: t.avatar
       }))
       .sort((a, b) => a.slot - b.slot);
-  }
-
-  getModel(hash) {
-    const model = this.models.get(hash);
-    if (!model) return null;
-    model.lastUsed = Date.now();
-    return { format: model.format, data: model.data };
-  }
-
-  _pruneModels() {
-    let total = [...this.models.values()].reduce((sum, m) => sum + m.data.length, 0);
-    if (total <= MODEL_CACHE_SOFT_LIMIT_BYTES) return;
-    const inUse = new Set([...this.tokens.values()].map((t) => t.avatar && t.avatar.modelHash).filter(Boolean));
-    const evictable = [...this.models.entries()].filter(([hash]) => !inUse.has(hash)).sort((a, b) => a[1].lastUsed - b[1].lastUsed);
-    for (const [hash, model] of evictable) {
-      if (total <= MODEL_CACHE_SOFT_LIMIT_BYTES) break;
-      this.models.delete(hash);
-      total -= model.data.length;
-    }
   }
 
   requestCharacter(playerId) {
@@ -323,37 +286,14 @@ class GmServer extends EventEmitter {
       }
 
       // Pushed by Character Manager whenever the player's avatar changes or
-      // they (re)connect - feeds the Roster page without the GM asking.
-      // Replies needModel so the client uploads the model bytes only when
-      // this GMScreen doesn't already have them.
+      // they (re)connect - feeds the Roster page without the GM asking. Just
+      // a parts descriptor; the Roster assembles the figure itself.
       if (req.method === 'POST' && req.url === '/avatar') {
         const token = this._bearerToken(req);
         const entry = token && this.tokens.get(token);
         if (!entry) return sendJson(res, 401, { error: 'Invalid token' });
         const body = await readJsonBody(req);
         entry.avatar = sanitizeAvatar(body.avatar);
-        const hash = entry.avatar.modelHash;
-        if (hash && this.models.has(hash)) this.models.get(hash).lastUsed = Date.now();
-        this.emit('players-change', this.getPlayers());
-        return sendJson(res, 200, { ok: true, needModel: !!hash && !this.models.has(hash) });
-      }
-
-      if (req.method === 'POST' && req.url === '/avatar-model') {
-        const token = this._bearerToken(req);
-        if (!token || !this.tokens.has(token)) return sendJson(res, 401, { error: 'Invalid token' });
-        const claimedHash = String(req.headers['x-model-hash'] || '').toLowerCase();
-        const format = String(req.headers['x-model-format'] || '').toLowerCase();
-        if (!HASH_RE.test(claimedHash) || !MODEL_FORMATS.has(format)) {
-          return sendJson(res, 400, { error: 'Missing or invalid model hash/format' });
-        }
-        const data = await readRawBody(req, MAX_MODEL_BYTES);
-        // Cache is shared across every player and keyed by hash, so the
-        // bytes have to actually match it - otherwise one client could
-        // replace the model another player's avatar points at.
-        const actualHash = crypto.createHash('sha256').update(data).digest('hex');
-        if (actualHash !== claimedHash) return sendJson(res, 400, { error: 'Model hash mismatch' });
-        this.models.set(actualHash, { format, data, lastUsed: Date.now() });
-        this._pruneModels();
         this.emit('players-change', this.getPlayers());
         return sendJson(res, 200, { ok: true });
       }
