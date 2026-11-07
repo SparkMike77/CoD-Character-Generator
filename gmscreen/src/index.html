@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+<!-- script-src allows exactly one inline script by hash: the import map below,
+     which maps the bare 'three' import used by three.js's addons to the copy that
+     scripts/vendor-three.js puts in src/vendor/ (see that script for why). If you
+     edit the import map text, recompute its sha256 (base64) and update it here.
+     img-src blob: is for textures embedded in GLB avatar models. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UIiVg22PC4ABTdJ22WSTrliOLGvfsog+qnGKL+MGxbk='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;" />
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <title>GMScreen</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -16,6 +22,7 @@
     <button type="button" class="tab-btn" data-page="page-campaign">Campaign</button>
     <button type="button" class="tab-btn active" data-page="page-session">Session</button>
     <button type="button" class="tab-btn" data-page="page-scene">Scene</button>
+    <button type="button" class="tab-btn" data-page="page-roster">Roster</button>
   </nav>
 
   <main>
@@ -89,6 +96,17 @@
           <textarea class="scene-textarea"></textarea>
         </section>
       </div>
+    </section>
+
+    <section id="page-roster" class="page">
+      <section class="block">
+        <div class="block-header-row">
+          <h2>Roster</h2>
+          <span class="hint">Each connected player's current avatar, kept up to date automatically.</span>
+        </div>
+        <p id="roster-empty" class="hint roster-empty">No players connected yet. Players appear here as soon as they pair with this session.</p>
+        <div id="roster-grid" class="roster-grid"></div>
+      </section>
     </section>
   </main>
 

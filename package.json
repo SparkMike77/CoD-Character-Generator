@@ -8,13 +8,15 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "node scripts/start.js",
-    "dist": "electron-builder --win",
-    "dist:all": "npm run dist && npm --prefix gmscreen install && npm --prefix gmscreen run dist"
+    "start": "npm run vendor && node scripts/start.js",
+    "dist": "npm run vendor && electron-builder --win",
+    "dist:all": "npm run dist && npm --prefix gmscreen install && npm --prefix gmscreen run dist",
+    "vendor": "node scripts/vendor-three.js ."
   },
   "devDependencies": {
     "electron": "^31.3.1",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "three": "^0.187.0"
   },
   "build": {
     "appId": "com.sparkmike77.codcharmanager",

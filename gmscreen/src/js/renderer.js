@@ -1,5 +1,6 @@
 import { renderMarkdown } from './markdown.js';
 import { renderCharacterSheet } from './character-view.js';
+import { AvatarViewer } from './avatar-view.js';
 
 let renameTimer = null;
 let currentCampaignPath = null;
@@ -102,11 +103,124 @@ function renderPlayerPage(page, player) {
   page.appendChild(wrap);
 }
 
+/* ---------- Roster (every connected player's avatar) ---------- */
+
+// Unlike the player pages (rebuilt wholesale on every update, which is fine
+// for plain HTML), roster cards are long-lived: each owns a WebGL viewer,
+// and players-change fires constantly (every avatar push, name keystroke
+// batch, character send). So cards are created once per player and only
+// patched - a model is (re)loaded only when that player's model hash
+// actually changes, never just because something else updated.
+const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, shownHash, loadingHash }
+
+function rosterDisplayName(player) {
+  return (player.avatar && player.avatar.name) || (player.character && player.name) || `Player${player.slot}`;
+}
+
+function createRosterCard(player) {
+  const card = document.createElement('div');
+  card.className = 'roster-card';
+
+  const viewport = document.createElement('div');
+  viewport.className = 'roster-viewport';
+  const msgEl = document.createElement('div');
+  msgEl.className = 'roster-message';
+  viewport.appendChild(msgEl);
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'roster-name';
+  const metaEl = document.createElement('div');
+  metaEl.className = 'roster-meta';
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'roster-open-btn';
+  openBtn.textContent = 'Open sheet';
+  openBtn.addEventListener('click', () => activateTab(`page-player-${player.id}`));
+
+  card.appendChild(viewport);
+  card.appendChild(nameEl);
+  card.appendChild(metaEl);
+  card.appendChild(openBtn);
+  document.getElementById('roster-grid').appendChild(card);
+
+  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, shownHash: null, loadingHash: null };
+  rosterCards.set(player.id, entry);
+  return entry;
+}
+
+function setRosterMessage(entry, text) {
+  entry.msgEl.textContent = text || '';
+  entry.msgEl.classList.toggle('hidden', !text);
+}
+
+async function updateRosterCard(entry, player) {
+  const avatar = player.avatar;
+  entry.nameEl.textContent = rosterDisplayName(player);
+  entry.metaEl.textContent = [`Player${player.slot}`, avatar && avatar.modelName].filter(Boolean).join(' · ');
+
+  if (!avatar || !avatar.modelHash) {
+    entry.viewer.clear();
+    entry.shownHash = null;
+    setRosterMessage(entry, 'Waiting for avatar...');
+    return;
+  }
+  entry.viewer.setColor(avatar.color);
+
+  if (avatar.modelHash === entry.shownHash || avatar.modelHash === entry.loadingHash) return;
+  if (!avatar.modelAvailable) {
+    // Descriptor arrived, bytes still uploading - the upload's own
+    // players-change will bring us back here with modelAvailable true.
+    setRosterMessage(entry, entry.shownHash ? '' : 'Receiving model...');
+    return;
+  }
+
+  const hash = avatar.modelHash;
+  entry.loadingHash = hash;
+  try {
+    const model = await window.gmApi.getAvatarModel(hash);
+    if (entry.loadingHash !== hash) return; // superseded by a newer change mid-load
+    if (!model) {
+      setRosterMessage(entry, 'Model unavailable.');
+      return;
+    }
+    await entry.viewer.setModel(model);
+    entry.shownHash = hash;
+    setRosterMessage(entry, '');
+  } catch (err) {
+    setRosterMessage(entry, `Couldn't display model: ${err.message || err}`);
+  } finally {
+    if (entry.loadingHash === hash) entry.loadingHash = null;
+  }
+}
+
+function renderRoster(players) {
+  const list = players || [];
+  const ids = new Set(list.map((p) => p.id));
+
+  // Players don't currently leave mid-run (slots last the whole session),
+  // but don't leak a WebGL context if that ever changes.
+  for (const [id, entry] of rosterCards) {
+    if (!ids.has(id)) {
+      entry.viewer.dispose();
+      entry.card.remove();
+      rosterCards.delete(id);
+    }
+  }
+
+  list.forEach((player) => {
+    const entry = rosterCards.get(player.id) || createRosterCard(player);
+    updateRosterCard(entry, player);
+  });
+  document.getElementById('roster-empty').classList.toggle('hidden', list.length > 0);
+}
+
 function renderPlayers(players) {
   (players || []).forEach((player) => {
     const page = ensurePlayerTab(player);
     renderPlayerPage(page, player);
   });
+  renderRoster(players);
 }
 
 function initPlayers() {

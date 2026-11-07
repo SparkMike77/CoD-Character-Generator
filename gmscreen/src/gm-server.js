@@ -8,6 +8,16 @@ const MDNS_TYPE = 'gmscreen';
 const PIN_MAX_ATTEMPTS = 5;
 const PIN_LOCKOUT_MS = 60_000;
 const MAX_PLAYER_SLOTS = 9;
+// JSON bodies: a full character with long History/Description text can be
+// well past the old 10 KB cap (which silently dropped the request).
+const MAX_JSON_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_MODEL_BYTES = 25 * 1024 * 1024;
+// Uploaded avatar models are held in memory for the run. Once the cache
+// passes this, models no player currently uses are dropped (a player who
+// switches back to one just re-uploads it).
+const MODEL_CACHE_SOFT_LIMIT_BYTES = 150 * 1024 * 1024;
+const MODEL_FORMATS = new Set(['stl', 'obj', 'glb']);
+const HASH_RE = /^[0-9a-f]{64}$/;
 
 function generatePin() {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
@@ -34,7 +44,7 @@ function readJsonBody(req) {
     let raw = '';
     req.on('data', (chunk) => {
       raw += chunk;
-      if (raw.length > 10_000) req.destroy();
+      if (raw.length > MAX_JSON_BODY_BYTES) req.destroy();
     });
     req.on('end', () => {
       if (!raw) return resolve({});
@@ -46,6 +56,40 @@ function readJsonBody(req) {
     });
     req.on('error', reject);
   });
+}
+
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    req.on('data', (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        reject(new Error('Body too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+// Only the fields the Roster needs, type-checked - this arrives from the
+// network, so nothing else a client sends is kept or echoed back.
+function sanitizeAvatar(raw) {
+  const a = raw && typeof raw === 'object' ? raw : {};
+  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  const hash = typeof a.modelHash === 'string' && HASH_RE.test(a.modelHash) ? a.modelHash : null;
+  return {
+    name: str(a.name, 120),
+    modelHash: hash,
+    modelName: str(a.modelName, 120),
+    format: MODEL_FORMATS.has(a.format) ? a.format : '',
+    color: typeof a.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(a.color) ? a.color : '#b9a68d',
+    updatedAt: Date.now()
+  };
 }
 
 function sendJson(res, status, body) {
@@ -69,8 +113,12 @@ class GmServer extends EventEmitter {
     // Each paired Character Manager gets a slot (Player1..Player9, in pairing
     // order) for the life of this GMScreen run - slots are purely in-memory,
     // same as tokens/PIN, since a restart already forces everyone to re-pair.
-    this.tokens = new Map(); // token -> { pairedAt, slot, name, character, pendingRequest }
+    this.tokens = new Map(); // token -> { pairedAt, slot, name, character, pendingRequest, avatar }
     this.nextSlot = 1;
+    // Avatar models players have uploaded, keyed by SHA-256 of the bytes
+    // (verified on upload) - shared across players, so two players using
+    // the same model costs one upload and one copy.
+    this.models = new Map(); // hash -> { format, data: Buffer, lastUsed }
     this.attempts = new Map(); // remoteAddress -> { count, lockUntil }
     this.campaign = null; // { campaignId, version, chronicle, body } | null
     this.bonjour = null;
@@ -135,8 +183,34 @@ class GmServer extends EventEmitter {
   getPlayers() {
     return [...this.tokens.entries()]
       .filter(([, t]) => t.slot != null)
-      .map(([token, t]) => ({ id: token, slot: t.slot, name: t.name, character: t.character, pendingRequest: t.pendingRequest }))
+      .map(([token, t]) => ({
+        id: token,
+        slot: t.slot,
+        name: t.name,
+        character: t.character,
+        pendingRequest: t.pendingRequest,
+        avatar: t.avatar ? { ...t.avatar, modelAvailable: !!(t.avatar.modelHash && this.models.has(t.avatar.modelHash)) } : null
+      }))
       .sort((a, b) => a.slot - b.slot);
+  }
+
+  getModel(hash) {
+    const model = this.models.get(hash);
+    if (!model) return null;
+    model.lastUsed = Date.now();
+    return { format: model.format, data: model.data };
+  }
+
+  _pruneModels() {
+    let total = [...this.models.values()].reduce((sum, m) => sum + m.data.length, 0);
+    if (total <= MODEL_CACHE_SOFT_LIMIT_BYTES) return;
+    const inUse = new Set([...this.tokens.values()].map((t) => t.avatar && t.avatar.modelHash).filter(Boolean));
+    const evictable = [...this.models.entries()].filter(([hash]) => !inUse.has(hash)).sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+    for (const [hash, model] of evictable) {
+      if (total <= MODEL_CACHE_SOFT_LIMIT_BYTES) break;
+      this.models.delete(hash);
+      total -= model.data.length;
+    }
   }
 
   requestCharacter(playerId) {
@@ -199,7 +273,7 @@ class GmServer extends EventEmitter {
           this.attempts.delete(remoteAddress);
           const token = crypto.randomBytes(24).toString('hex');
           const slot = this.nextSlot <= MAX_PLAYER_SLOTS ? this.nextSlot++ : null;
-          this.tokens.set(token, { pairedAt: Date.now(), slot, name: null, character: null, pendingRequest: false });
+          this.tokens.set(token, { pairedAt: Date.now(), slot, name: null, character: null, pendingRequest: false, avatar: null });
           this.emit('change', this.getState());
           if (slot != null) this.emit('players-change', this.getPlayers());
           return sendJson(res, 200, { token, id: this.instanceId, name: this.sessionName });
@@ -244,6 +318,42 @@ class GmServer extends EventEmitter {
         const body = await readJsonBody(req);
         entry.character = body.character || null;
         entry.name = entry.character?.meta?.name || null;
+        this.emit('players-change', this.getPlayers());
+        return sendJson(res, 200, { ok: true });
+      }
+
+      // Pushed by Character Manager whenever the player's avatar changes or
+      // they (re)connect - feeds the Roster page without the GM asking.
+      // Replies needModel so the client uploads the model bytes only when
+      // this GMScreen doesn't already have them.
+      if (req.method === 'POST' && req.url === '/avatar') {
+        const token = this._bearerToken(req);
+        const entry = token && this.tokens.get(token);
+        if (!entry) return sendJson(res, 401, { error: 'Invalid token' });
+        const body = await readJsonBody(req);
+        entry.avatar = sanitizeAvatar(body.avatar);
+        const hash = entry.avatar.modelHash;
+        if (hash && this.models.has(hash)) this.models.get(hash).lastUsed = Date.now();
+        this.emit('players-change', this.getPlayers());
+        return sendJson(res, 200, { ok: true, needModel: !!hash && !this.models.has(hash) });
+      }
+
+      if (req.method === 'POST' && req.url === '/avatar-model') {
+        const token = this._bearerToken(req);
+        if (!token || !this.tokens.has(token)) return sendJson(res, 401, { error: 'Invalid token' });
+        const claimedHash = String(req.headers['x-model-hash'] || '').toLowerCase();
+        const format = String(req.headers['x-model-format'] || '').toLowerCase();
+        if (!HASH_RE.test(claimedHash) || !MODEL_FORMATS.has(format)) {
+          return sendJson(res, 400, { error: 'Missing or invalid model hash/format' });
+        }
+        const data = await readRawBody(req, MAX_MODEL_BYTES);
+        // Cache is shared across every player and keyed by hash, so the
+        // bytes have to actually match it - otherwise one client could
+        // replace the model another player's avatar points at.
+        const actualHash = crypto.createHash('sha256').update(data).digest('hex');
+        if (actualHash !== claimedHash) return sendJson(res, 400, { error: 'Model hash mismatch' });
+        this.models.set(actualHash, { format, data, lastUsed: Date.now() });
+        this._pruneModels();
         this.emit('players-change', this.getPlayers());
         return sendJson(res, 200, { ok: true });
       }

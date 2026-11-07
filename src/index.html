@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+<!-- script-src allows exactly one inline script by hash: the import map below,
+     which maps the bare 'three' import used by three.js's addons to the copy that
+     scripts/vendor-three.js puts in src/vendor/ (see that script for why). If you
+     edit the import map text, recompute its sha256 (base64) and update it here.
+     img-src blob: is for textures embedded in GLB avatar models. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UIiVg22PC4ABTdJ22WSTrliOLGvfsog+qnGKL+MGxbk='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;" />
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <title>CoD Character Manager</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -33,6 +39,38 @@
   </nav>
 
   <main>
+    <!-- Avatar column: shown beside the Character Sheet and Details & Combat
+         pages, hidden on the reference/rules pages (see AVATAR_PAGES). -->
+    <aside id="avatar-panel" class="avatar-panel">
+      <section class="block avatar-block">
+        <h2>Avatar</h2>
+        <div id="avatar-viewport" class="avatar-viewport">
+          <div id="avatar-message" class="avatar-message hidden"></div>
+        </div>
+        <div id="avatar-name" class="avatar-name"></div>
+
+        <label class="avatar-field">
+          <span>Model</span>
+          <select id="avatar-model-select"></select>
+        </label>
+        <div class="avatar-actions">
+          <button type="button" id="avatar-import-btn" class="add-row-btn">Import Model...</button>
+          <button type="button" id="avatar-remove-btn" class="gmscreen-link-btn" title="Remove this imported model from your library">Remove</button>
+        </div>
+
+        <label class="avatar-field avatar-color-field">
+          <span>Color</span>
+          <input type="color" id="avatar-color" />
+        </label>
+        <label class="avatar-check">
+          <input type="checkbox" id="avatar-spin" checked />
+          <span>Turntable spin</span>
+        </label>
+        <p class="hint">Drag to rotate, scroll to zoom. Import STL, OBJ, or GLB files.</p>
+      </section>
+    </aside>
+
+    <div class="pages">
     <!-- PAGE 1 -->
     <section id="page-front" class="page active">
       <div class="meta-grid">
@@ -296,6 +334,7 @@
         </div>
       </section>
     </section>
+    </div>
   </main>
 
   <div id="attributes-info-modal" class="modal-overlay hidden">

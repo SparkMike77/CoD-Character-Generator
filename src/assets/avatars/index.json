@@ -1,0 +1,18 @@
+[
+  {
+    "file": "standing-figure.stl",
+    "name": "Standing Figure"
+  },
+  {
+    "file": "cloaked-figure.stl",
+    "name": "Cloaked Figure"
+  },
+  {
+    "file": "bust.stl",
+    "name": "Bust"
+  },
+  {
+    "file": "pawn.stl",
+    "name": "Pawn"
+  }
+]

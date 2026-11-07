@@ -218,7 +218,20 @@ button {
   font-weight: 600;
 }
 
-main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+/* Two columns: the Avatar panel on the left, the active page on the right.
+   The panel collapses away on non-character pages (body.avatar-hidden). */
+main {
+  padding: 20px;
+  max-width: 1680px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+body.avatar-hidden main { grid-template-columns: minmax(0, 1fr); max-width: 1400px; }
+body.avatar-hidden .avatar-panel { display: none; }
+.pages { min-width: 0; }
 .guide-main { max-width: 760px; }
 
 .page { display: none; }
@@ -242,7 +255,9 @@ main { padding: 20px; max-width: 1400px; margin: 0 auto; }
 .two-col.two-col-half { grid-template-columns: 1fr 1.3fr; }
 .two-col > .col-stack { display: flex; flex-direction: column; min-width: 0; }
 
-@media (max-width: 1100px) {
+/* 1360 rather than 1100: the Avatar column takes ~270px of the width the
+   3-column sheet used to have to itself. */
+@media (max-width: 1360px) {
   .two-col { grid-template-columns: 1fr; }
 }
 
@@ -754,3 +769,72 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
 .modal-close:hover { color: var(--danger); }
 
 .modal-actions { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+
+/* ---------- Avatar panel (left column) ---------- */
+.avatar-panel {
+  position: sticky;
+  top: 72px; /* clear the sticky app toolbar */
+  min-width: 0;
+}
+.avatar-block { margin-bottom: 0; }
+.avatar-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: radial-gradient(ellipse at 50% 35%, #fdfcf9 0%, #ebe6dc 70%, #ddd6c9 100%);
+  overflow: hidden;
+  cursor: grab;
+}
+.avatar-viewport:active { cursor: grabbing; }
+.avatar-canvas { display: block; width: 100%; height: 100%; }
+.avatar-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.avatar-message.hidden { display: none; }
+.avatar-name {
+  margin: 8px 0 10px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--accent-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.avatar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.avatar-field select { width: 100%; }
+.avatar-color-field { flex-direction: row; align-items: center; justify-content: space-between; }
+.avatar-color-field input[type="color"] { width: 48px; height: 26px; padding: 1px 2px; }
+.avatar-color-field input[type="color"]:disabled { opacity: 0.4; }
+.avatar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.avatar-actions .gmscreen-link-btn:disabled { visibility: hidden; }
+.avatar-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}

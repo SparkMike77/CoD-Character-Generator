@@ -15,6 +15,7 @@ import { renderMarkdown } from './markdown.js';
 import { DEFAULT_SYSTEM_RULES, DEFAULT_SYSTEM_RULES_FILENAME } from './default-system-rules.js';
 import { DEFAULT_GAME_SETTING, DEFAULT_GAME_SETTING_FILENAME } from './default-game-setting.js';
 import { DEFAULT_COMBAT_RULES, DEFAULT_COMBAT_RULES_FILENAME } from './default-combat-rules.js';
+import { initAvatarPanel, avatarCharacterLoaded } from './avatar-panel.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
@@ -79,6 +80,7 @@ function mergeCharacter(loaded) {
     health: { ...base.health, ...(loaded.health || {}) },
     willpower: { ...base.willpower, ...(loaded.willpower || {}) },
     resource: { ...base.resource, ...(loaded.resource || {}) },
+    avatar: { ...base.avatar, ...(loaded.avatar || {}) },
     description: { ...base.description, ...(loaded.description || {}) },
     equipment: loaded.equipment && loaded.equipment.length ? loaded.equipment : base.equipment,
     combat: loaded.combat && loaded.combat.length ? loaded.combat : base.combat
@@ -838,6 +840,7 @@ function renderAll() {
   renderCombat();
   updateFileStatus();
   refreshAllValidation();
+  avatarCharacterLoaded();
 }
 
 async function handleNew() {
@@ -897,6 +900,10 @@ async function handleSaveAs() {
   setDirty(false);
 }
 
+// The Avatar column belongs to the character, so it sits beside the two
+// character pages and gets out of the way on the reference/rules pages.
+const AVATAR_PAGES = new Set(['page-front', 'page-back']);
+
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -904,6 +911,7 @@ function initTabs() {
       document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(btn.dataset.page).classList.add('active');
+      document.body.classList.toggle('avatar-hidden', !AVATAR_PAGES.has(btn.dataset.page));
     });
   });
 }
@@ -1362,5 +1370,6 @@ initRulesPanes();
 initGmSessions();
 initCharacterRequestModal();
 initCampaignFields();
+initAvatarPanel({ getCharacter: () => character, markDirty: () => setDirty(true) });
 renderAll();
 refreshCampaignUI();

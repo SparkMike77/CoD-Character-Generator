@@ -3,11 +3,13 @@ const path = require('path');
 const fs = require('fs/promises');
 const { GmScreenClient } = require('./js/gmscreen-client');
 const { CampaignStore } = require('./js/campaign-store');
+const { AvatarLibrary, SUPPORTED_FORMATS } = require('./js/avatar-library');
 
 let mainWindow;
 let gettingStartedWindow;
 let gmScreenClient;
 let campaignStore;
+let avatarLibrary;
 
 function sendMenuAction(action) {
   if (mainWindow) mainWindow.webContents.send('menu-action', action);
@@ -89,8 +91,9 @@ function buildMenu() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 900,
+    // Wide enough for the Avatar column plus the sheet's 3-column layout.
+    width: 1480,
+    height: 920,
     minWidth: 900,
     minHeight: 700,
     webPreferences: {
@@ -111,9 +114,15 @@ app.whenReady().then(() => {
     storagePath: path.join(app.getPath('userData'), 'campaigns.json')
   });
 
+  avatarLibrary = new AvatarLibrary({
+    builtinDir: path.join(__dirname, 'assets', 'avatars'),
+    userDir: path.join(app.getPath('userData'), 'avatar-library')
+  });
+
   gmScreenClient = new GmScreenClient({
     storagePath: path.join(app.getPath('userData'), 'gm-connections.json'),
-    campaignStore
+    campaignStore,
+    avatarLibrary
   }).start();
   gmScreenClient.on('up', (info) => {
     if (mainWindow) mainWindow.webContents.send('gmscreen:up', info);
@@ -185,6 +194,24 @@ ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenCli
 ipcMain.handle('gmscreen:check', (_event, { id, host, port }) => gmScreenClient.check({ id, host, port }));
 ipcMain.handle('gmscreen:forget', (_event, id) => gmScreenClient.forget(id));
 ipcMain.handle('gmscreen:sendCharacter', (_event, { id, character }) => gmScreenClient.sendCharacter(id, character));
+
+ipcMain.handle('avatar:list', () => avatarLibrary.list());
+ipcMain.handle('avatar:get', (_event, hash) => avatarLibrary.getModel(hash));
+ipcMain.handle('avatar:remove', (_event, hash) => avatarLibrary.remove(hash));
+ipcMain.handle('avatar:setCurrent', (_event, avatar) => gmScreenClient.setAvatar(avatar));
+ipcMain.handle('avatar:import', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import Avatar Model',
+    filters: [{ name: '3D Models', extensions: SUPPORTED_FORMATS }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  try {
+    return await avatarLibrary.importFile(result.filePaths[0]);
+  } catch (err) {
+    return { ok: false, error: `Couldn't import that file: ${err.message}` };
+  }
+});
 
 ipcMain.handle('campaigns:list', () => campaignStore.list());
 ipcMain.handle('campaigns:get', (_event, campaignId) => campaignStore.get(campaignId));
