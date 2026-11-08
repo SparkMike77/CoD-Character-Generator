@@ -140,6 +140,13 @@ const PARTS = ['head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
 const FINGER_RE = /^(index|middle|pinky|ring|thumb)_/;
 
 const ASSET_URL = new URL('../assets/avatar/', import.meta.url);
+// The pack's hairstyles are positioned for one of its two base heads
+// ("Origin at 0" = that body's world space), and NOT the same one for all:
+// measured crown gaps say Buzzed (male cut) and Simple Parted sit on the
+// male head, the rest on the female. Each is re-anchored from its authoring
+// head to this body's Head bone; anchoring them all to the female head left
+// those two floating ~5 cm above the skull.
+const HAIR_AUTHORED_ON = { 'hair_buzzed.glb': 'body_male.glb', 'hair_simpleparted.glb': 'body_male.glb' };
 const HAIR_FILES = {
   buzzed: { male: 'hair_buzzed.glb', female: 'hair_buzzedfemale.glb' },
   parted: { male: 'hair_simpleparted.glb', female: 'hair_simpleparted.glb' },
@@ -473,9 +480,9 @@ export async function buildAvatar(descriptor) {
   const a = normalizeAvatar(descriptor);
   const female = a.gender === 'female';
   const hairFile = a.style === 'bald' ? null : HAIR_FILES[a.style][female ? 'female' : 'male'];
-  const [t, femaleT, hairT] = await Promise.all([
+  const [t, hairAnchorT, hairT] = await Promise.all([
     loadAsset(female ? 'body_female.glb' : 'body_male.glb'),
-    loadAsset('body_female.glb'), // the hairstyles are authored around the female head
+    loadAsset(HAIR_AUTHORED_ON[hairFile] || 'body_female.glb'), // the head the hairstyle was made for
     hairFile ? loadAsset(hairFile) : null
   ]);
 
@@ -642,11 +649,11 @@ export async function buildAvatar(descriptor) {
     }
   }
 
-  // 6. Hair, re-anchored from the female head it was authored on to this
+  // 6. Hair, re-anchored from the head it was authored on to this
   // body's head bone.
   if (hairT) {
     const hair = new THREE.Mesh(hairT.hairMesh.geometry, hairMaterial(hairT.hairMesh.material));
-    femaleT.headRestWorld.clone().invert().decompose(hair.position, hair.quaternion, hair.scale);
+    hairAnchorT.headRestWorld.clone().invert().decompose(hair.position, hair.quaternion, hair.scale);
     bone.Head.add(hair);
   }
 
