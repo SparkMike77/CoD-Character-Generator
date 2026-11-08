@@ -15,10 +15,12 @@
 // show as Damaged - on the viewer and to the GM - for as long as the
 // Condition is there, over the player's own setting for the part (which is
 // what's saved, and comes back when the Condition goes). Only a Healthy
-// part is overridden; a Morphed one stays Morphed.
+// part is overridden; a Morphed one stays Morphed. They also pose the
+// figure (kneeling, lying down... - conditions.js conditionPose), likewise
+// never saved.
 import { AvatarViewer } from './avatar-view.js';
 import { BODY_PARTS, GENDERS, HAIRSTYLES, PART_STATES, normalizeAvatar } from './avatar-parts.js';
-import { conditionInjuries } from './conditions.js';
+import { conditionInjuries, conditionPose } from './conditions.js';
 
 const NAME_SYNC_DEBOUNCE_MS = 600;
 const SPIN_PREF_KEY = 'avatar.spin';
@@ -69,14 +71,13 @@ function conditionOverrides() {
 }
 
 // The avatar as shown and sent to the GM: the saved one with Condition
-// injuries applied.
+// injuries and pose applied.
 function displayed() {
   const a = avatar();
   const overrides = conditionOverrides();
-  if (!overrides.size) return a;
   const parts = { ...a.parts };
   for (const part of overrides.keys()) parts[part] = 'damaged';
-  return { ...a, parts };
+  return { ...a, parts, pose: conditionPose(getCharacter().conditions) };
 }
 
 function renderControls() {

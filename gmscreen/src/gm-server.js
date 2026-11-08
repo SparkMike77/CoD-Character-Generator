@@ -61,6 +61,19 @@ function readJsonBody(req) {
 
 // Only the fields the Roster needs, type-checked - this arrives from the
 // network, so nothing else a client sends is kept or echoed back.
+// The Condition pose (avatar-parts.js normalizePose); null = standing.
+const AVATAR_POSE_BODIES = ['down', 'kneel', 'hunch', 'stagger'];
+const AVATAR_SIDES = ['left', 'right'];
+function sanitizePose(raw) {
+  const p = raw && typeof raw === 'object' ? raw : {};
+  return {
+    body: AVATAR_POSE_BODIES.includes(p.body) ? p.body : null,
+    mirrorBody: p.mirrorBody === true,
+    shield: AVATAR_SIDES.includes(p.shield) ? p.shield : null,
+    sling: Array.isArray(p.sling) ? AVATAR_SIDES.filter((side) => p.sling.includes(side)) : []
+  };
+}
+
 function sanitizeAvatar(raw) {
   const a = raw && typeof raw === 'object' ? raw : {};
   const oneOf = (v, options, fallback) => (options.includes(v) ? v : fallback);
@@ -75,6 +88,7 @@ function sanitizeAvatar(raw) {
     hair: color(a.hair, '#3b2a1e'),
     outfit: color(a.outfit, '#4d5866'),
     parts: Object.fromEntries(AVATAR_PARTS.map((id) => [id, oneOf(parts[id], AVATAR_PART_STATES, 'healthy')])),
+    pose: sanitizePose(a.pose),
     updatedAt: Date.now()
   };
 }

@@ -118,10 +118,19 @@ export class AvatarViewer {
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect);
     const fitHeight = (size.y / 2) / Math.tan(vFov / 2);
     const fitWidth = (Math.max(size.x, size.z) / 2) / Math.tan(hFov / 2);
-    const distance = Math.max(fitHeight, fitWidth) * 1.08 + Math.max(size.x, size.z) / 2;
+    let distance = Math.max(fitHeight, fitWidth) * 1.08 + Math.max(size.x, size.z) / 2;
 
     this.controls.target.copy(center);
-    this.camera.position.set(center.x, center.y + size.y * 0.12, center.z + distance);
+    const footprint = Math.max(size.x, size.z);
+    if (size.y < footprint * 0.6) {
+      // Lying down: look down on it from the front at ~35 degrees, close
+      // enough to fill the width.
+      distance = Math.max((footprint / 2) / Math.tan(hFov / 2), (size.z / 2 + size.y) / Math.tan(vFov / 2)) * 1.1 + size.y;
+      const elevation = THREE.MathUtils.degToRad(35);
+      this.camera.position.set(center.x, center.y + distance * Math.sin(elevation), center.z + distance * Math.cos(elevation));
+    } else {
+      this.camera.position.set(center.x, center.y + size.y * 0.12, center.z + distance);
+    }
     this.camera.near = distance / 100;
     this.camera.far = distance * 10;
     this.camera.updateProjectionMatrix();
@@ -152,14 +161,15 @@ export class AvatarViewer {
     });
     this._removeModel();
 
-    // Normalize: the BODY is MODEL_HEIGHT tall (so a tall hairstyle doesn't
-    // shrink the character), centred on the turntable axis, feet on the
-    // ground.
+    // Normalize: the BODY standing is MODEL_HEIGHT tall (so a tall
+    // hairstyle doesn't shrink the character, and a pose - kneeling, lying
+    // down - doesn't grow it), centred on the turntable axis, resting on
+    // the ground.
     const wrapper = new THREE.Group();
     wrapper.add(figure);
     let box = new THREE.Box3().setFromObject(sizer);
-    const size = box.getSize(new THREE.Vector3());
-    figure.scale.multiplyScalar(MODEL_HEIGHT / Math.max(size.y, 1e-6));
+    const height = figure.userData.restHeight || box.getSize(new THREE.Vector3()).y;
+    figure.scale.multiplyScalar(MODEL_HEIGHT / Math.max(height, 1e-6));
     box = new THREE.Box3().setFromObject(sizer);
     const center = box.getCenter(new THREE.Vector3());
     figure.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
@@ -171,10 +181,12 @@ export class AvatarViewer {
     this.model = wrapper;
     this.scene.add(wrapper);
     // Keep the camera where the user left it when only a part or color
-    // changed; frame afresh on the first build.
-    if (!this._framedOnce) {
+    // changed; frame afresh on the first build and when the pose changes.
+    const poseKey = figure.userData.poseKey || '';
+    if (!this._framedOnce || poseKey !== this._poseKey) {
       this._frame(box);
       this._framedOnce = true;
+      this._poseKey = poseKey;
     }
   }
 

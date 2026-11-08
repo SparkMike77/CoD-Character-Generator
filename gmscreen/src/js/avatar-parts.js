@@ -26,6 +26,11 @@
 //     so they sit correctly on any body.
 //   - Morphed limbs are chrome; their material is flagged
 //     userData.chrome so the viewer can give it a reflection map.
+//   - Conditions can pose the figure (descriptor.pose, see normalizePose):
+//     single frames of Quaternius's Universal Animation Library, which
+//     shares this skeleton (avatar-poses.js, scripts/extract-poses.js),
+//     applied once everything is built - so clothing, bandages, blades and
+//     hair, all skinned or attached to bones, simply follow.
 //
 // SHARED FILE: an identical copy lives at gmscreen/src/js/avatar-parts.js,
 // with the same assets in gmscreen/src/assets/avatar/. The two apps are
@@ -38,6 +43,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { POSE_FRAMES } from './avatar-poses.js';
 
 export const GENDERS = [
   { id: 'male', label: 'Male' },
@@ -97,6 +103,26 @@ export function normalizeAvatar(raw) {
     hair: hex(a.hair, AVATAR_DEFAULT.hair),
     outfit: hex(a.outfit, AVATAR_DEFAULT.outfit),
     parts: Object.fromEntries(BODY_PARTS.map(({ id }) => [id, pick(rawParts[id], PART_STATES, 'healthy')]))
+  };
+}
+
+// A pose (from the Conditions on the sheet - conditions.js conditionPose;
+// never saved, only shown and sent to the GM):
+//   body:  null (standing) | 'down' (flat on the ground) | 'kneel' (on the
+//          right knee, head bowed) | 'hunch' (hunched and low) | 'stagger'
+//   mirrorBody: true = the body pose's mirror image (kneel on the left knee)
+//   shield: null | 'left' | 'right' - that arm thrown across the eyes
+//   sling: ['left', 'right'] subset - those forearms held across the chest
+export const POSE_BODIES = ['down', 'kneel', 'hunch', 'stagger'];
+const SIDES = ['left', 'right'];
+
+export function normalizePose(raw) {
+  const p = raw && typeof raw === 'object' ? raw : {};
+  return {
+    body: POSE_BODIES.includes(p.body) ? p.body : null,
+    mirrorBody: p.mirrorBody === true,
+    shield: SIDES.includes(p.shield) ? p.shield : null,
+    sling: Array.isArray(p.sling) ? SIDES.filter((side) => p.sling.includes(side)) : []
   };
 }
 
@@ -538,6 +564,9 @@ export async function buildAvatar(descriptor) {
   });
   const bone = Object.fromEntries(body.skeleton.bones.map((b) => [b.name, b]));
   const stateOf = (part) => a.parts[part];
+  const restLocal = Object.fromEntries(body.skeleton.bones.map((b) => [b.name, b.quaternion.clone()]));
+  root.updateMatrixWorld(true);
+  const restChest = bone.spine_03.getWorldQuaternion(new THREE.Quaternion());
 
   // 1. Reshape: body type + morphed bulk.
   const factor = shapeFactors(a);
@@ -715,5 +744,158 @@ export async function buildAvatar(descriptor) {
   // never change how tall the character appears.
   body.userData.avatarBody = true;
 
+  // 7. Pose. The viewer scales the figure by its standing height, so
+  // measure that first; the posed bounds are measured afresh after.
+  root.updateMatrixWorld(true);
+  root.userData.restHeight = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3()).y;
+  const pose = normalizePose(descriptor && descriptor.pose);
+  if (applyPose({ t, root, bone, bones: body.skeleton.bones, restLocal, restChest, radius }, pose)) {
+    root.updateMatrixWorld(true);
+    body.boundingBox = null;
+    clothMesh.boundingBox = null;
+  }
+  root.userData.poseKey = JSON.stringify(pose);
+
   return root;
+}
+
+/* ---------- Poses ---------- */
+
+const partnerOf = (name) => name.replace(/_(l|r)$/, (_, s) => (s === 'l' ? '_r' : '_l'));
+
+// Each bone's rotation in skeleton space (the root's parent ignored).
+function chainWorld(bones, localOf) {
+  const world = {};
+  for (const b of bones) { // parents come first in the skeleton
+    const q = localOf(b.name).clone();
+    world[b.name] = b.parent && b.parent.isBone ? world[b.parent.name].clone().multiply(q) : q;
+  }
+  return world;
+}
+
+// A frame as { bone name -> local Quaternion, pelvis: Vector3 | null },
+// optionally mirrored left <-> right. Mirroring works on each bone's
+// change from rest in skeleton space, reflected across the body's
+// centre plane (X), so it doesn't depend on how the rig's left and right
+// bone axes are set up. Cached per body template.
+function poseFrame(t, bones, restLocal, id, mirror) {
+  t.poseCache = t.poseCache || new Map();
+  const key = `${id}:${mirror}`;
+  if (t.poseCache.has(key)) return t.poseCache.get(key);
+  const raw = POSE_FRAMES[id];
+  const local = (name) => (raw.q[name] ? new THREE.Quaternion().fromArray(raw.q[name]) : restLocal[name]);
+  const frame = { q: {}, pelvis: raw.pelvis ? new THREE.Vector3().fromArray(raw.pelvis) : null };
+  if (!mirror) {
+    for (const b of bones) frame.q[b.name] = local(b.name).clone();
+  } else {
+    const posedWorld = chainWorld(bones, local);
+    const restWorld = chainWorld(bones, (name) => restLocal[name]);
+    const mirroredWorld = {};
+    for (const b of bones) {
+      const p = partnerOf(b.name);
+      const change = posedWorld[p].clone().multiply(restWorld[p].clone().invert());
+      change.set(change.x, -change.y, -change.z, change.w); // reflect across X
+      mirroredWorld[b.name] = change.multiply(restWorld[b.name]);
+      frame.q[b.name] = b.parent && b.parent.isBone
+        ? mirroredWorld[b.parent.name].clone().invert().multiply(mirroredWorld[b.name])
+        : mirroredWorld[b.name].clone();
+    }
+    if (frame.pelvis) {
+      const pelvisBone = bones.find((b) => b.name === 'pelvis');
+      const parentName = pelvisBone.parent && pelvisBone.parent.isBone ? pelvisBone.parent.name : null;
+      if (parentName) {
+        const v = frame.pelvis.clone().applyQuaternion(posedWorld[parentName]);
+        v.x = -v.x;
+        frame.pelvis = v.applyQuaternion(mirroredWorld[parentName].clone().invert());
+      } else {
+        frame.pelvis.x = -frame.pelvis.x;
+      }
+    }
+  }
+  t.poseCache.set(key, frame);
+  return frame;
+}
+
+// The whole-body pose (a frame), then arms placed by aiming them: one
+// hand over the eyes (Blinded), wracked forearms held against the belly.
+// An arm taken from another animation's frame would only land right on
+// that animation's torso, so these are aimed at points relative to
+// wherever the chest and head ended up. Lying down takes neither.
+// Returns whether it posed anything.
+function applyPose(ctx, pose) {
+  const { t, root, bone, bones, restLocal, restChest, radius } = ctx;
+  const arms = pose.body === 'down' ? [] : [
+    ...(pose.shield ? [[pose.shield, 'shield']] : []),
+    ...pose.sling.map((side) => [side, 'sling'])
+  ];
+  if (!pose.body && !arms.length) return false;
+  if (pose.body) {
+    const frame = poseFrame(t, bones, restLocal, pose.body, pose.mirrorBody);
+    for (const b of bones) b.quaternion.copy(frame.q[b.name]);
+    if (frame.pelvis) bone.pelvis.position.copy(frame.pelvis);
+    // Lying down: turned to lie across the view rather than end-on (the
+    // frame falls backward, head away from the viewer).
+    if (pose.body === 'down') root.rotateY(Math.PI / 2);
+  }
+  root.updateMatrixWorld(true);
+  // The chest's axes now (the figure faces +Z, its left is +X, at rest).
+  const chestTurn = bone.spine_03.getWorldQuaternion(new THREE.Quaternion()).multiply(restChest.clone().invert());
+  const axis = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(chestTurn);
+  const fwd = axis(0, 0, 1);
+  const up = axis(0, 1, 0);
+  const left = axis(1, 0, 0);
+  const pos = (name) => bone[name].getWorldPosition(new THREE.Vector3());
+  for (const [side, kind] of arms) {
+    const s = side === 'left' ? 'l' : 'r';
+    const out = left.clone().multiplyScalar(side === 'left' ? 1 : -1); // away from the body, this side
+    let wrist;
+    let elbowToward;
+    if (kind === 'shield') {
+      // Wrist at this side's cheek, out in front, so the hand lies across the eyes.
+      const r = radius('Head');
+      wrist = pos('Head').addScaledVector(up, r * 0.6).addScaledVector(fwd, r * 1.9).addScaledVector(out, r * 0.7);
+      elbowToward = out.clone().multiplyScalar(0.7).addScaledVector(up, -1).addScaledVector(fwd, 0.3);
+    } else {
+      // Wrist in front of the belly, toward the other side; elbow at the waist.
+      const r = radius('spine_02');
+      wrist = pos('spine_02').addScaledVector(fwd, r * 1.7).addScaledVector(out, -r * 0.3);
+      elbowToward = out.clone().addScaledVector(up, -0.8).addScaledVector(fwd, -0.2);
+    }
+    reachArm(bone, s, wrist, elbowToward, restLocal);
+  }
+  return true;
+}
+
+// Two-bone reach: bends the arm so the wrist (hand bone) lands on
+// `target`, the elbow bowing toward `elbowToward`; the hand straight on.
+function reachArm(bone, s, target, elbowToward, restLocal) {
+  const upper = bone[`upperarm_${s}`];
+  const lower = bone[`lowerarm_${s}`];
+  const hand = bone[`hand_${s}`];
+  hand.quaternion.copy(restLocal[hand.name]);
+  const at = (b) => b.getWorldPosition(new THREE.Vector3());
+  const shoulder = at(upper);
+  const l1 = shoulder.distanceTo(at(lower));
+  const l2 = at(lower).distanceTo(at(hand));
+  const toTarget = new THREE.Vector3().subVectors(target, shoulder);
+  const d = THREE.MathUtils.clamp(toTarget.length(), Math.abs(l1 - l2) + 1e-4, (l1 + l2) * 0.999);
+  const dir = toTarget.normalize();
+  const along = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+  const bow = Math.sqrt(Math.max(0, l1 * l1 - along * along));
+  const pole = elbowToward.clone().addScaledVector(dir, -elbowToward.dot(dir)).normalize();
+  const elbow = shoulder.clone().addScaledVector(dir, along).addScaledVector(pole, bow);
+  const wrist = shoulder.clone().addScaledVector(dir, d);
+  aimBone(upper, at(lower), elbow);
+  aimBone(lower, at(hand), wrist);
+}
+
+// Turns `b` (about its own origin) so the point `from` moves toward `to`.
+function aimBone(b, from, to) {
+  const origin = b.getWorldPosition(new THREE.Vector3());
+  const turn = new THREE.Quaternion().setFromUnitVectors(
+    from.clone().sub(origin).normalize(), to.clone().sub(origin).normalize());
+  const parentQ = b.parent.getWorldQuaternion(new THREE.Quaternion());
+  const worldQ = b.getWorldQuaternion(new THREE.Quaternion());
+  b.quaternion.copy(parentQ.invert().multiply(turn.multiply(worldQ)));
+  b.updateMatrixWorld(true);
 }

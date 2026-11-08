@@ -199,3 +199,34 @@ export function applyConditionStats(conditionNames, base) {
   }
   return result;
 }
+
+// The avatar pose for the Conditions on the sheet (see avatar-parts.js
+// normalizePose). One whole-body pose, the most severe winning: on the
+// ground (Knocked Down, or both legs wracked) > down on the wracked leg's
+// knee > kneeling, head bowed (Defeated) > hunched (Weakened) > staggered
+// (Stunned, Confused). Standing or kneeling, a wracked arm is held across
+// the chest, and Blinded throws an arm over the eyes - a free one.
+export function conditionPose(conditionNames) {
+  const on = new Set(activeConditions(conditionNames).map((c) => c.name));
+  const legL = on.has('Leg Wrack (Left)');
+  const legR = on.has('Leg Wrack (Right)');
+  const armL = on.has('Arm Wrack (Left)');
+  const armR = on.has('Arm Wrack (Right)');
+  const pose = { body: null, mirrorBody: false, shield: null, sling: [] };
+  if (on.has('Knocked Down') || (legL && legR)) {
+    pose.body = 'down';
+    return pose;
+  }
+  if (legL || legR) {
+    pose.body = 'kneel';
+    pose.mirrorBody = legL; // the frame kneels on the right knee
+  } else if (on.has('Defeated')) pose.body = 'kneel';
+  else if (on.has('Weakened')) pose.body = 'hunch';
+  else if (on.has('Stunned') || on.has('Confused')) pose.body = 'stagger';
+  if (armL) pose.sling.push('left');
+  if (armR) pose.sling.push('right');
+  if (on.has('Blinded (One Eye)') || on.has('Blinded (Both Eyes)')) {
+    pose.shield = !armL ? 'left' : !armR ? 'right' : null;
+  }
+  return pose;
+}
