@@ -10,8 +10,15 @@
 // connected to - that's what feeds the GM's Roster page. GMScreen rebuilds
 // the same figure from the descriptor, so nothing but that small JSON is
 // ever sent.
+//
+// Conditions on the sheet (conditions.js) can injure body parts: those
+// show as Damaged - on the viewer and to the GM - for as long as the
+// Condition is there, over the player's own setting for the part (which is
+// what's saved, and comes back when the Condition goes). Only a Healthy
+// part is overridden; a Morphed one stays Morphed.
 import { AvatarViewer } from './avatar-view.js';
-import { GENDERS, HAIRSTYLES, PART_STATES, normalizeAvatar } from './avatar-parts.js';
+import { BODY_PARTS, GENDERS, HAIRSTYLES, PART_STATES, normalizeAvatar } from './avatar-parts.js';
+import { conditionInjuries } from './conditions.js';
 
 const NAME_SYNC_DEBOUNCE_MS = 600;
 const SPIN_PREF_KEY = 'avatar.spin';
@@ -54,13 +61,42 @@ function fillSelect(select, options) {
   });
 }
 
+// Body part id -> the Conditions injuring it, for parts they override.
+function conditionOverrides() {
+  const injuries = conditionInjuries(getCharacter().conditions);
+  const parts = avatar().parts;
+  return new Map([...injuries].filter(([part]) => parts[part] === 'healthy'));
+}
+
+// The avatar as shown and sent to the GM: the saved one with Condition
+// injuries applied.
+function displayed() {
+  const a = avatar();
+  const overrides = conditionOverrides();
+  if (!overrides.size) return a;
+  const parts = { ...a.parts };
+  for (const part of overrides.keys()) parts[part] = 'damaged';
+  return { ...a, parts };
+}
+
 function renderControls() {
   const a = avatar();
+  const overrides = conditionOverrides();
   el('avatar-gender').value = a.gender;
   el('avatar-style').value = a.style;
   partSelects().forEach((select) => {
-    select.value = a.parts[select.dataset.avatarPart];
+    const injuredBy = overrides.get(select.dataset.avatarPart);
+    select.value = injuredBy ? 'damaged' : a.parts[select.dataset.avatarPart];
+    select.disabled = !!injuredBy;
+    select.title = injuredBy ? `Damaged by ${injuredBy.join(', ')} - remove the Condition to change it` : '';
+    select.classList.toggle('from-condition', !!injuredBy);
   });
+  const note = el('avatar-condition-note');
+  note.textContent = overrides.size
+    ? 'From Conditions: ' + BODY_PARTS.filter((p) => overrides.has(p.id))
+      .map((p) => `${p.label} (${overrides.get(p.id).join(', ')})`).join('; ')
+    : '';
+  note.classList.toggle('hidden', !overrides.size);
   colorInputs().forEach((input) => {
     input.value = a[input.dataset.avatarColor];
   });
@@ -76,13 +112,21 @@ function showAvatar(descriptor) {
 }
 
 function syncToGm() {
-  window.codApi.setCurrentAvatar({ name: (getCharacter().meta.name || '').trim(), ...avatar() });
+  window.codApi.setCurrentAvatar({ name: (getCharacter().meta.name || '').trim(), ...displayed() });
 }
 
 // A part/state picker changed: persist it, redraw, tell the GM.
 function commit() {
   markDirty();
-  showAvatar(avatar());
+  showAvatar(displayed());
+  syncToGm();
+}
+
+// The sheet's Conditions changed: their injuries may have too.
+export function avatarConditionsChanged() {
+  if (!viewer) return;
+  renderControls();
+  showAvatar(displayed());
   syncToGm();
 }
 
@@ -95,7 +139,7 @@ export function avatarCharacterLoaded() {
   character.avatar = normalizeAvatar(character.avatar);
   renderName();
   renderControls();
-  showAvatar(character.avatar);
+  showAvatar(displayed());
   syncToGm();
 }
 
@@ -129,7 +173,7 @@ export function initAvatarPanel(options) {
   colorInputs().forEach((input) => {
     const key = input.dataset.avatarColor;
     // Live preview while dragging; only the final pick marks dirty/syncs.
-    input.addEventListener('input', () => showAvatar({ ...avatar(), [key]: input.value }));
+    input.addEventListener('input', () => showAvatar({ ...displayed(), [key]: input.value }));
     input.addEventListener('change', () => {
       avatar()[key] = input.value;
       commit();

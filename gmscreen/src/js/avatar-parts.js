@@ -146,7 +146,11 @@ const ARM_DROP = THREE.MathUtils.degToRad(70); // from the rest T-pose down towa
 // its own garment so a morphed leg can show its chrome shin.
 const CLOTH = { shirt: 0.009, pants: 0.007, shin: 0.007, shoe: 0.011 };
 
-const BRUISE = '#7a1c1c';
+// Damaged parts are soaked toward this: fresh blood, deep and saturated.
+// Skin and cloth both lean well into it (DAMAGE_BLEND), and the cloth is
+// glossier, as if wet.
+const BLOOD = '#9a0b0b';
+const DAMAGE_BLEND = { skin: 0.68, cloth: 0.72 };
 const CHROME = '#d6dbe1';
 const BANDAGE = '#ece6d8';
 const SHOE = '#2a2622';
@@ -552,7 +556,7 @@ export async function buildAvatar(descriptor) {
   const baseSkin = t.body.material;
   body.material = PARTS.map((part) => {
     const state = stateOf(part);
-    if (state === 'damaged') return material(baseSkin, blend(a.skin, BRUISE, 0.32));
+    if (state === 'damaged') return material(baseSkin, blend(a.skin, BLOOD, DAMAGE_BLEND.skin));
     if (state === 'morphed') return chromeMaterial();
     return material(baseSkin, a.skin);
   });
@@ -574,7 +578,7 @@ export async function buildAvatar(descriptor) {
     const state = garment === 'pants' && part === 'torso' ? 'healthy' : stateOf(part);
     const m = garment === 'shoe'
       ? plainMaterial(SHOE, 0.5)
-      : plainMaterial(state === 'damaged' ? blend(a.outfit, BRUISE, 0.35) : a.outfit, 0.85);
+      : state === 'damaged' ? plainMaterial(blend(a.outfit, BLOOD, DAMAGE_BLEND.cloth), 0.5) : plainMaterial(a.outfit, 0.85);
     if (state === 'morphed' && (garment === 'shoe' || garment === 'shin')) m.visible = false;
     if (garment === 'shirt' && stateOf('torso') === 'morphed') m.visible = false;
     return m;

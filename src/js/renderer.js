@@ -15,7 +15,8 @@ import { renderMarkdown } from './markdown.js';
 import { DEFAULT_SYSTEM_RULES, DEFAULT_SYSTEM_RULES_FILENAME } from './default-system-rules.js';
 import { DEFAULT_GAME_SETTING, DEFAULT_GAME_SETTING_FILENAME } from './default-game-setting.js';
 import { DEFAULT_COMBAT_RULES, DEFAULT_COMBAT_RULES_FILENAME } from './default-combat-rules.js';
-import { initAvatarPanel, avatarCharacterLoaded } from './avatar-panel.js';
+import { initAvatarPanel, avatarCharacterLoaded, avatarConditionsChanged } from './avatar-panel.js';
+import { CONDITIONS, findCondition } from './conditions.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
@@ -437,8 +438,63 @@ function renderLineList(containerEl, arr, rerender) {
 function renderAspirations() {
   renderLineList(document.getElementById('aspirations-list'), character.aspirations, renderAspirations);
 }
+// Conditions: each line is a dropdown of the Combat Rules' Conditions (see
+// conditions.js), with the chosen one's effect shown under it. Injuring
+// Conditions also mark body parts Damaged on the avatar
+// (avatarConditionsChanged). A value that isn't in the list - typed into an
+// older character's free-text list - is kept as a "custom" entry.
 function renderConditions() {
-  renderLineList(document.getElementById('conditions-list'), character.conditions, renderConditions);
+  const containerEl = document.getElementById('conditions-list');
+  const arr = character.conditions;
+  clearEl(containerEl);
+  arr.forEach((val, idx) => {
+    const row = document.createElement('div');
+    row.className = 'condition-row';
+
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', `Condition ${idx + 1}`);
+    const options = [['', '-- None --'], ...CONDITIONS.map((c) => [c.name, c.name])];
+    if (val && !findCondition(val)) options.push([val, `${val} (custom)`]);
+    options.forEach(([value, label]) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    select.value = val;
+
+    const effect = document.createElement('div');
+    effect.className = 'condition-effect';
+    const showEffect = () => {
+      const condition = findCondition(select.value);
+      effect.textContent = condition ? condition.effect : '';
+      effect.classList.toggle('hidden', !condition);
+      select.classList.toggle('condition-set', !!select.value);
+    };
+    showEffect();
+
+    select.addEventListener('change', () => {
+      arr[idx] = select.value;
+      showEffect();
+      setDirty(true);
+      avatarConditionsChanged();
+    });
+
+    row.appendChild(select);
+    row.appendChild(effect);
+    containerEl.appendChild(row);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'add-row-btn';
+  addBtn.textContent = '+ Add Line';
+  addBtn.addEventListener('click', () => {
+    arr.push('');
+    setDirty(true);
+    renderConditions();
+  });
+  containerEl.appendChild(addBtn);
 }
 function renderTouchstones() {
   renderLineList(document.getElementById('touchstones-list'), character.touchstones, renderTouchstones);
