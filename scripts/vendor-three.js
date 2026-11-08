@@ -24,6 +24,7 @@ const path = require('path');
 const ENTRIES = [
   'build/three.module.js',
   'examples/jsm/controls/OrbitControls.js',
+  'examples/jsm/environments/RoomEnvironment.js',
   'examples/jsm/loaders/GLTFLoader.js',
   'examples/jsm/utils/SkeletonUtils.js'
 ];

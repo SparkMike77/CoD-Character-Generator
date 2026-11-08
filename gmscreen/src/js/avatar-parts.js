@@ -22,8 +22,10 @@
 //   - Clothing (shirt, trousers, shoes) is generated from the reshaped body
 //     surface itself, offset slightly outward and skinned to the same
 //     skeleton, so it fits every body type and limb state automatically.
-//   - Bandages, spines and claws are attached to the bones in the posed
-//     figure, so they sit correctly on any body.
+//   - Bandages and blades are attached to the bones in the posed figure,
+//     so they sit correctly on any body.
+//   - Morphed limbs are chrome; their material is flagged
+//     userData.chrome so the viewer can give it a reflection map.
 //
 // SHARED FILE: an identical copy lives at gmscreen/src/js/avatar-parts.js,
 // with the same assets in gmscreen/src/assets/avatar/. The two apps are
@@ -99,20 +101,26 @@ export function normalizeAvatar(raw) {
 // Keys are bone names without their _l/_r suffix.
 const BODY_SHAPE = {
   male: { spine_01: 0.94, spine_02: 0.93, spine_03: 0.93, neck_01: 0.95, upperarm: 0.86, lowerarm: 0.9, thigh: 0.92, calf: 0.94 },
-  female: { spine_01: 0.97, spine_02: 0.97, spine_03: 0.97, upperarm: 0.9, lowerarm: 0.93, thigh: 0.95, calf: 0.95 },
+  // pelvis/thigh: the Superhero female's hips are extreme; ~15% narrower.
+  female: { pelvis: 0.85, spine_01: 0.97, spine_02: 0.97, spine_03: 0.97, upperarm: 0.9, lowerarm: 0.93, thigh: 0.88, calf: 0.95 },
   nonbinary: { pelvis: 0.93, spine_01: 0.88, spine_02: 0.86, spine_03: 0.85, neck_01: 0.92, upperarm: 0.8, lowerarm: 0.85, thigh: 0.86, calf: 0.88 }
 };
 // Non-Binary narrows the shoulders by moving the arms in along the
 // collarbone (a bone translation, which doesn't cascade like scale).
 const SHOULDER_WIDTH = { male: 1, female: 1, nonbinary: 0.86 };
-const MORPH_BULK = { lowerarm: 1.45, hand: 1.35, finger: 1.3, calf: 1.4, foot: 1.2, ball: 1.15 };
+// Morphed limbs are liquid metal reshaped into weapons (think T-1000):
+// sleek rather than bulky, the hand replaced by a flat blade, a fin blade
+// down the shin. Faceted (flat-shaded) chrome for a hard, blocky read.
+const MORPH_BULK = { lowerarm: 1.06, calf: 1.06 };
+const MORPH_HAND_SCALE = 0.05; // the hand collapses into the blade's root
 
 const ARM_DROP = THREE.MathUtils.degToRad(70); // from the rest T-pose down toward the sides
-const CLOTH = { shirt: 0.009, pants: 0.007, shoe: 0.011 }; // offset off the skin, metres
+// Offset off the skin, metres. "shin" is the trouser leg below the knee -
+// its own garment so a morphed leg can show its chrome shin.
+const CLOTH = { shirt: 0.009, pants: 0.007, shin: 0.007, shoe: 0.011 };
 
 const BRUISE = '#7a1c1c';
-const MORPH_TINT = '#5d6e52'; // sickly green-grey
-const HORN = '#d8cfb8';
+const CHROME = '#d6dbe1';
 const BANDAGE = '#ece6d8';
 const SHOE = '#2a2622';
 
@@ -151,7 +159,8 @@ function partOfBone(name) {
 function garmentOfBone(name) {
   const base = baseName(name);
   if (/^spine_|^clavicle/.test(base) || base === 'upperarm') return 'shirt'; // short sleeves
-  if (base === 'pelvis' || base === 'thigh' || base === 'calf') return 'pants';
+  if (base === 'pelvis' || base === 'thigh') return 'pants';
+  if (base === 'calf') return 'shin';
   if (base === 'foot' || base === 'ball' || base === 'ball_leaf') return 'shoe';
   return null; // head, neck, forearms, hands stay bare
 }
@@ -335,6 +344,41 @@ function plainMaterial(color, roughness = 0.6) {
   return m;
 }
 
+function chromeMaterial() {
+  const m = new THREE.MeshStandardMaterial({ color: CHROME, metalness: 1, roughness: 0.24, flatShading: true });
+  m.userData.ownMaterial = true;
+  m.userData.chrome = true;
+  return m;
+}
+
+// A blade: `points` is its outline as [across, along] pairs. A thin core
+// with one wide, steep chamfer each side, so the cross-section is a flat
+// hexagon - the angled faces catch different reflections, which is what
+// makes it read as a hard metal blade rather than a flat white slab. The
+// chamfer grows the outline by `edge` all round.
+function bladeGeometry(points, thickness, edge) {
+  const shape = new THREE.Shape(points.map(([x, y]) => new THREE.Vector2(x, y)));
+  const core = thickness * 0.25;
+  const g = new THREE.ExtrudeGeometry(shape, {
+    depth: core, bevelEnabled: true, bevelThickness: (thickness - core) / 2, bevelSize: edge, bevelSegments: 1
+  });
+  g.translate(0, 0, -core / 2);
+  g.userData.ownGeometry = true;
+  return g;
+}
+
+// Parents `mesh` to `bone` at world position `origin`, its local +Y along
+// `along` and local +X toward `across` (made perpendicular to `along`).
+function attachOriented(bone, mesh, origin, along, across) {
+  const y = along.clone().normalize();
+  const x = across.clone().addScaledVector(y, -across.dot(y)).normalize();
+  const z = new THREE.Vector3().crossVectors(x, y);
+  mesh.position.copy(origin);
+  mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  mesh.updateMatrixWorld(true);
+  bone.attach(mesh);
+}
+
 function blend(a, b, t) {
   return '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString();
 }
@@ -451,20 +495,20 @@ export async function buildAvatar(descriptor) {
   body.material = PARTS.map((part) => {
     const state = stateOf(part);
     if (state === 'damaged') return material(baseSkin, blend(a.skin, BRUISE, 0.32));
-    if (state === 'morphed') return material(baseSkin, blend(a.skin, MORPH_TINT, 0.6), { roughness: 0.45 });
+    if (state === 'morphed') return chromeMaterial();
     return material(baseSkin, a.skin);
   });
   if (brows) brows.material = material(brows.material, a.hair);
 
-  // 3. Clothing.
+  // 3. Clothing. A morphed leg's trouser ends at the knee and its shoe is
+  // gone, showing the metal shin and foot.
   const cloth = buildClothing(t, geo, positions, (garment, part) => {
     const state = stateOf(part);
-    if (garment === 'shoe') {
-      const m = plainMaterial(SHOE, 0.5);
-      m.visible = state !== 'morphed'; // morphed feet go bare (and clawed)
-      return m;
-    }
-    return plainMaterial(state === 'damaged' ? blend(a.outfit, BRUISE, 0.35) : a.outfit, 0.85);
+    const m = garment === 'shoe'
+      ? plainMaterial(SHOE, 0.5)
+      : plainMaterial(state === 'damaged' ? blend(a.outfit, BRUISE, 0.35) : a.outfit, 0.85);
+    if (state === 'morphed' && (garment === 'shoe' || garment === 'shin')) m.visible = false;
+    return m;
   });
   const clothMesh = new THREE.SkinnedMesh(cloth.geometry, cloth.materials);
   // Same parent AND same local transform as the body, so the shared
@@ -479,9 +523,12 @@ export async function buildAvatar(descriptor) {
   for (const side of ['l', 'r']) bone[`upperarm_${side}`].position.multiplyScalar(SHOULDER_WIDTH[a.gender]);
   rotateBoneWorld(bone.upperarm_l, new THREE.Vector3(0, 0, 1), -ARM_DROP);
   rotateBoneWorld(bone.upperarm_r, new THREE.Vector3(0, 0, 1), ARM_DROP);
+  for (const [limb, s] of [['leftArm', 'l'], ['rightArm', 'r']]) {
+    if (a.limbs[limb] === 'morphed') bone[`hand_${s}`].scale.setScalar(MORPH_HAND_SCALE);
+  }
   root.updateMatrixWorld(true);
 
-  // 5. Bandages / spines / claws on the posed skeleton.
+  // 5. Bandages / blades on the posed skeleton.
   const worldPos = (name) => bone[name].getWorldPosition(new THREE.Vector3());
   // boneRadius is in the mesh's bind space (the pack's armature is scaled,
   // so that's not world units); convert using a bone length posing doesn't
@@ -490,10 +537,9 @@ export async function buildAvatar(descriptor) {
   const unit = worldPos('lowerarm_l').distanceTo(worldPos('hand_l')) /
     t.boneOrigin[bindIdx('lowerarm_l')].distanceTo(t.boneOrigin[bindIdx('hand_l')]);
   const radius = (name) => t.boneRadius[bindIdx(name)] * factor(name) * unit;
-  const horn = plainMaterial(HORN, 0.35);
   const bandage = plainMaterial(BANDAGE, 0.9);
-  const UP = new THREE.Vector3(0, 1, 0);
-  const outward = (sign) => new THREE.Vector3(sign, 0, 0);
+  const FORWARD = new THREE.Vector3(0, 0, 1);
+  const BACK = new THREE.Vector3(0, 0, -1);
 
   for (const [limb, s, sign] of [['leftArm', 'l', 1], ['rightArm', 'r', -1]]) {
     const state = a.limbs[limb];
@@ -504,41 +550,35 @@ export async function buildAvatar(descriptor) {
       for (const tt of [0.42, 0.62]) attachAlong(bone[`lowerarm_${s}`], new THREE.TorusGeometry(r * 1.05, 0.009, 8, 28), bandage, from, to, tt);
     }
     if (state === 'morphed') {
-      // Spines along the outside of the forearm, pointing outward.
-      for (const tt of [0.25, 0.5, 0.75]) {
-        attachAlong(bone[`lowerarm_${s}`], new THREE.ConeGeometry(r * 0.45, r * 3.2, 8), horn, from, to, tt, {
-          offset: outward(sign).multiplyScalar(r * 1.05), lookAxis: UP, dir: outward(sign)
-        });
-      }
-      // Claws past the fingertips, pointing down along the arm.
-      const dir = new THREE.Vector3().subVectors(to, from).normalize();
-      for (const dz of [-1, 0, 1]) {
-        const tip = to.clone().addScaledVector(dir, r * 2.8).add(new THREE.Vector3(0, 0, dz * r * 0.5));
-        attachAlong(bone[`hand_${s}`], new THREE.ConeGeometry(r * 0.28, r * 2.6, 8), horn, tip, tip, 0, { lookAxis: UP, dir });
-      }
+      // The hand is a long flat blade running on from the forearm: edges
+      // front and back, a chisel point toward the front edge.
+      // Turned ~20 degrees outward so its flat shows from the front too.
+      const len = from.distanceTo(to) * 1.6;
+      const w = r * 1.6;
+      const blade = new THREE.Mesh(bladeGeometry([
+        [-w * 0.5, 0], [w * 0.5, 0], [w * 0.44, len * 0.8], [w * 0.12, len], [-w * 0.34, len * 0.86], [-w * 0.5, len * 0.3]
+      ], r * 0.5, r * 0.3), chromeMaterial());
+      const across = FORWARD.clone().add(new THREE.Vector3(sign * 0.36, 0, 0));
+      attachOriented(bone[`lowerarm_${s}`], blade, from.clone().lerp(to, 0.62), new THREE.Vector3().subVectors(to, from), across);
     }
   }
 
-  for (const [limb, s, sign] of [['leftLeg', 'l', 1], ['rightLeg', 'r', -1]]) {
+  for (const [limb, s] of [['leftLeg', 'l'], ['rightLeg', 'r']]) {
     const state = a.limbs[limb];
     const from = worldPos(`calf_${s}`);
     const to = worldPos(`foot_${s}`);
     const r = radius(`calf_${s}`);
     if (state === 'damaged') {
-      for (const tt of [0.45, 0.6]) attachAlong(bone[`calf_${s}`], new THREE.TorusGeometry(r * 1.05 + CLOTH.pants, 0.011, 8, 28), bandage, from, to, tt);
+      for (const tt of [0.45, 0.6]) attachAlong(bone[`calf_${s}`], new THREE.TorusGeometry(r * 1.05 + CLOTH.shin, 0.011, 8, 28), bandage, from, to, tt);
     }
     if (state === 'morphed') {
-      for (const tt of [0.3, 0.55]) {
-        attachAlong(bone[`calf_${s}`], new THREE.ConeGeometry(r * 0.4, r * 2.8, 8), horn, from, to, tt, {
-          offset: outward(sign).multiplyScalar(r * 1.05), lookAxis: UP, dir: outward(sign)
-        });
-      }
-      const toe = worldPos(`ball_${s}`);
-      const forward = new THREE.Vector3(0, -0.15, 1).normalize();
-      for (const dx of [-1, 0, 1]) {
-        const tip = toe.clone().add(new THREE.Vector3(dx * 0.025, 0, 0.04));
-        attachAlong(bone[`ball_${s}`], new THREE.ConeGeometry(0.013, 0.07, 8), horn, tip, tip, 0, { lookAxis: UP, dir: forward });
-      }
+      // A fin blade down the back of the shin, sweeping out to a point.
+      const len = from.distanceTo(to) * 0.8;
+      const fin = new THREE.Mesh(bladeGeometry([
+        [0, 0], [r * 0.4, 0], [r * 2.8, len * 0.74], [r * 2.1, len * 0.88], [0, len * 0.96]
+      ], r * 0.42, r * 0.18), chromeMaterial());
+      const origin = from.clone().lerp(to, 0.1).addScaledVector(BACK, r * 0.55);
+      attachOriented(bone[`calf_${s}`], fin, origin, new THREE.Vector3().subVectors(to, from), BACK);
     }
   }
 
@@ -549,6 +589,10 @@ export async function buildAvatar(descriptor) {
     femaleT.headRestWorld.clone().invert().decompose(hair.position, hair.quaternion, hair.scale);
     bone.Head.add(hair);
   }
+
+  // The viewer sizes the figure by this mesh alone, so hair, blades, etc.
+  // never change how tall the character appears.
+  body.userData.avatarBody = true;
 
   return root;
 }

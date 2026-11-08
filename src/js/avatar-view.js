@@ -8,6 +8,7 @@
 // edit both together.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildAvatar } from './avatar-parts.js';
 
 const MODEL_HEIGHT = 2; // the figure is normalized to this many scene units tall
@@ -37,6 +38,14 @@ export class AvatarViewer {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
+    // Reflection map for the chrome (morphed) materials only. Metal with
+    // nothing to reflect renders near-black; skin and cloth keep the plain
+    // lighting below.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const room = new RoomEnvironment();
+    this.envMap = pmrem.fromScene(room, 0.04).texture;
+    room.dispose();
+    pmrem.dispose();
     this.camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3328, 1.6));
@@ -134,17 +143,24 @@ export class AvatarViewer {
     }
     // Always drawn in full, so skip per-mesh frustum culling (a skinned
     // mesh's bounds are computed in the pose it was first seen in).
-    figure.traverse((n) => { n.frustumCulled = false; });
+    let sizer = figure;
+    figure.traverse((n) => {
+      n.frustumCulled = false;
+      if (n.userData.avatarBody) sizer = n;
+      const materials = Array.isArray(n.material) ? n.material : n.material ? [n.material] : [];
+      materials.forEach((m) => { if (m.userData.chrome) m.envMap = this.envMap; });
+    });
     this._removeModel();
 
-    // Normalize: MODEL_HEIGHT tall, centred on the turntable axis, feet on
-    // the ground.
+    // Normalize: the BODY is MODEL_HEIGHT tall (so a tall hairstyle doesn't
+    // shrink the character), centred on the turntable axis, feet on the
+    // ground.
     const wrapper = new THREE.Group();
     wrapper.add(figure);
-    let box = new THREE.Box3().setFromObject(wrapper);
+    let box = new THREE.Box3().setFromObject(sizer);
     const size = box.getSize(new THREE.Vector3());
     figure.scale.multiplyScalar(MODEL_HEIGHT / Math.max(size.y, 1e-6));
-    box = new THREE.Box3().setFromObject(wrapper);
+    box = new THREE.Box3().setFromObject(sizer);
     const center = box.getCenter(new THREE.Vector3());
     figure.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
     box = new THREE.Box3().setFromObject(wrapper);
@@ -186,6 +202,7 @@ export class AvatarViewer {
     this.clear();
     this.shadow.geometry.dispose();
     this.shadow.material.dispose();
+    this.envMap.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
