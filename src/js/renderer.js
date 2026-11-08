@@ -16,7 +16,7 @@ import { DEFAULT_SYSTEM_RULES, DEFAULT_SYSTEM_RULES_FILENAME } from './default-s
 import { DEFAULT_GAME_SETTING, DEFAULT_GAME_SETTING_FILENAME } from './default-game-setting.js';
 import { DEFAULT_COMBAT_RULES, DEFAULT_COMBAT_RULES_FILENAME } from './default-combat-rules.js';
 import { initAvatarPanel, avatarCharacterLoaded, avatarConditionsChanged } from './avatar-panel.js';
-import { CONDITIONS, findCondition } from './conditions.js';
+import { CONDITIONS, findCondition, canonicalCondition, applyConditionStats } from './conditions.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
@@ -81,7 +81,7 @@ function mergeCharacter(loaded) {
     endowments: loaded.endowments && loaded.endowments.length ? loaded.endowments : base.endowments,
     features: loaded.features && loaded.features.length ? loaded.features : base.features,
     aspirations: loaded.aspirations || base.aspirations,
-    conditions: loaded.conditions || base.conditions,
+    conditions: (loaded.conditions || base.conditions).map(canonicalCondition),
     touchstones: loaded.touchstones || base.touchstones,
     code: loaded.code || base.code,
     tactics: loaded.tactics || base.tactics,
@@ -478,6 +478,7 @@ function renderConditions() {
       showEffect();
       setDirty(true);
       avatarConditionsChanged();
+      renderConditionStats();
     });
 
     row.appendChild(select);
@@ -639,12 +640,30 @@ function renderDerived() {
   const d = derivedStats(character);
   document.getElementById('size-category-select').value = character.sizeCategory;
   document.getElementById('derived-size').textContent = d.size;
-  document.getElementById('derived-speed').textContent = d.speed;
-  document.getElementById('derived-defense').textContent = d.defense;
-  document.getElementById('derived-initiative').textContent = d.initiativeMod;
+  renderConditionStats(d);
   renderHealth();
   renderWillpower();
   renderResourceTrack();
+}
+
+// Speed / Defense / Initiative Mod with the Conditions on the sheet applied
+// (conditions.js applyConditionStats). A changed value is marked, its
+// hover text gives the base value, and a note under the readout says why.
+function renderConditionStats(d = derivedStats(character)) {
+  const stats = applyConditionStats(character.conditions, d);
+  const reasons = [];
+  [['speed', 'Speed'], ['defense', 'Defense'], ['initiative', 'Initiative']].forEach(([key, label]) => {
+    const stat = stats[key];
+    const out = document.getElementById(`derived-${key}`);
+    const changed = stat.reasons.length > 0;
+    out.textContent = stat.value;
+    out.classList.toggle('condition-modified', changed);
+    out.title = changed ? `${stat.base} without Conditions` : '';
+    if (changed) reasons.push(`${label} ${stat.value} (from ${stat.base}; ${stat.reasons.join('; ')})`);
+  });
+  const note = document.getElementById('derived-condition-note');
+  note.textContent = reasons.length ? `Conditions: ${reasons.join(' • ')}` : '';
+  note.classList.toggle('hidden', !reasons.length);
 }
 
 function initSizeControl() {

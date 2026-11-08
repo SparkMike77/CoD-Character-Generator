@@ -492,6 +492,8 @@ body.avatar-hidden .avatar-panel { display: none; }
 .derived-readout input { width: 60px; }
 .derived-readout select { font-size: 12px; padding: 2px 4px; }
 .size-control { display: flex; align-items: center; gap: 6px; }
+.derived-readout output.condition-modified { color: #b3261e; font-weight: 700; }
+.derived-condition-note { grid-column: 1 / -1; margin: 2px 0 0; font-size: 11.5px; line-height: 1.35; color: #b3261e; }
 .derived-readout span .info-icon-sm { vertical-align: middle; margin-left: 2px; }
 
 .derived-note { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); font-size: 11px; }
