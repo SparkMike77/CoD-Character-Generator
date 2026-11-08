@@ -337,8 +337,8 @@ function defaultCharacter() {
     experience: 0,
     armor: '',
     sizeCategory: 'average',
-    // 3D avatar parts descriptor - { gender, head, skin, hair, outfit,
-    // limbs: { leftArm, rightArm, leftLeg, rightLeg } }. null here; the
+    // 3D avatar parts descriptor - { gender, style, skin, hair, outfit,
+    // parts: { head, torso, leftArm, rightArm, leftLeg, rightLeg } }. null here; the
     // avatar panel fills it via normalizeAvatar() (avatar-parts.js) when
     // the character is loaded, which also migrates older/invalid values.
     avatar: null,

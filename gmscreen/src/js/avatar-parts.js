@@ -1,6 +1,6 @@
-// Human avatar assembled from parts: one head (hairstyle), one torso, and
-// four limbs (left/right arm, left/right leg), each limb independently
-// Healthy, Damaged, or Morphed. An avatar is fully described by a small JSON
+// Human avatar assembled from parts: head, torso, left/right arm, left/right
+// leg, each independently Healthy, Damaged, or Morphed, plus a gender
+// (body shape), hairstyle, and colors. An avatar is fully described by a small JSON
 // descriptor (see AVATAR_DEFAULT), so GMScreen rebuilds the exact same
 // figure from it without any model data crossing the network.
 //
@@ -42,10 +42,11 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 export const GENDERS = [
   { id: 'male', label: 'Male' },
   { id: 'female', label: 'Female' },
-  { id: 'nonbinary', label: 'Non-Binary' }
+  { id: 'nonbinary', label: 'Non-Binary' },
+  { id: 'other', label: 'Other' } // for now built exactly like Non-Binary
 ];
 
-export const HEADS = [
+export const HAIRSTYLES = [
   { id: 'bald', label: 'Bald' },
   { id: 'buzzed', label: 'Buzzed' },
   { id: 'parted', label: 'Parted' },
@@ -53,26 +54,29 @@ export const HEADS = [
   { id: 'buns', label: 'Buns' }
 ];
 
-export const LIMB_STATES = [
+export const PART_STATES = [
   { id: 'healthy', label: 'Healthy' },
   { id: 'damaged', label: 'Damaged' },
   { id: 'morphed', label: 'Morphed' }
 ];
 
-export const LIMBS = [
-  { id: 'leftArm', label: 'Left Arm' },
-  { id: 'rightArm', label: 'Right Arm' },
-  { id: 'leftLeg', label: 'Left Leg' },
-  { id: 'rightLeg', label: 'Right Leg' }
+// The six body parts, each independently Healthy / Damaged / Morphed.
+export const BODY_PARTS = [
+  { id: 'head', label: 'Head', short: 'Head' },
+  { id: 'torso', label: 'Torso', short: 'Torso' },
+  { id: 'leftArm', label: 'Left Arm', short: 'L.Arm' },
+  { id: 'rightArm', label: 'Right Arm', short: 'R.Arm' },
+  { id: 'leftLeg', label: 'Left Leg', short: 'L.Leg' },
+  { id: 'rightLeg', label: 'Right Leg', short: 'R.Leg' }
 ];
 
 export const AVATAR_DEFAULT = {
   gender: 'nonbinary',
-  head: 'parted',
+  style: 'parted', // hairstyle
   skin: '#c99a78',
   hair: '#3b2a1e',
   outfit: '#4d5866',
-  limbs: { leftArm: 'healthy', rightArm: 'healthy', leftLeg: 'healthy', rightLeg: 'healthy' }
+  parts: { head: 'healthy', torso: 'healthy', leftArm: 'healthy', rightArm: 'healthy', leftLeg: 'healthy', rightLeg: 'healthy' }
 };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -81,17 +85,18 @@ const hex = (value, fallback) => (typeof value === 'string' && HEX_RE.test(value
 
 // Fills gaps / replaces anything invalid with defaults, so an older or
 // hand-edited character file (or a malformed network message) always
-// produces a buildable avatar.
+// produces a buildable avatar. Also migrates the earlier shape, where the
+// hairstyle was `head` and the part states were `limbs` (arms/legs only).
 export function normalizeAvatar(raw) {
   const a = raw && typeof raw === 'object' ? raw : {};
-  const limbs = a.limbs && typeof a.limbs === 'object' ? a.limbs : {};
+  const rawParts = [a.parts, a.limbs].find((p) => p && typeof p === 'object') || {};
   return {
     gender: pick(a.gender, GENDERS, AVATAR_DEFAULT.gender),
-    head: pick(a.head, HEADS, AVATAR_DEFAULT.head),
+    style: pick(a.style ?? a.head, HAIRSTYLES, AVATAR_DEFAULT.style),
     skin: hex(a.skin, AVATAR_DEFAULT.skin),
     hair: hex(a.hair, AVATAR_DEFAULT.hair),
     outfit: hex(a.outfit, AVATAR_DEFAULT.outfit),
-    limbs: Object.fromEntries(LIMBS.map(({ id }) => [id, pick(limbs[id], LIMB_STATES, 'healthy')]))
+    parts: Object.fromEntries(BODY_PARTS.map(({ id }) => [id, pick(rawParts[id], PART_STATES, 'healthy')]))
   };
 }
 
@@ -108,11 +113,18 @@ const BODY_SHAPE = {
 // Non-Binary narrows the shoulders by moving the arms in along the
 // collarbone (a bone translation, which doesn't cascade like scale).
 const SHOULDER_WIDTH = { male: 1, female: 1, nonbinary: 0.86 };
+// "Other" is, for now, built exactly like Non-Binary.
+BODY_SHAPE.other = BODY_SHAPE.nonbinary;
+SHOULDER_WIDTH.other = SHOULDER_WIDTH.nonbinary;
 // Morphed limbs are liquid metal reshaped into weapons (think T-1000):
 // sleek rather than bulky, the hand replaced by a flat blade, a fin blade
 // down the shin. Faceted (flat-shaded) chrome for a hard, blocky read.
 const MORPH_BULK = { lowerarm: 1.06, calf: 1.06 };
 const MORPH_HAND_SCALE = 0.05; // the hand collapses into the blade's root
+// Placement in multiples of the bone's average radius (tuned by eye):
+const HEAD_BAND_HEIGHT = 1.55; // brow bandage, above the Head bone origin
+const BACK_DEPTH = 0.75; // spine blades' roots, behind the spine axis
+const TRUNK_WRAP_FORWARD = 0.3; // torso bandages' centre, ahead of the spine axis
 
 const ARM_DROP = THREE.MathUtils.degToRad(70); // from the rest T-pose down toward the sides
 // Offset off the skin, metres. "shin" is the trouser leg below the knee -
@@ -289,7 +301,7 @@ function shapeFactors(a) {
     const key = FINGER_RE.test(base) ? 'finger' : base;
     let f = shape[key] ?? 1;
     const part = partOfBone(boneName);
-    if (part !== 'head' && part !== 'torso' && a.limbs[part] === 'morphed') f *= MORPH_BULK[key] ?? 1;
+    if (a.parts[part] === 'morphed') f *= MORPH_BULK[key] ?? 1; // (only limb bones have entries)
     return f;
   };
 }
@@ -460,7 +472,7 @@ function attachAlong(bone, geometry, mat, a, b, t, { offset, lookAxis = new THRE
 export async function buildAvatar(descriptor) {
   const a = normalizeAvatar(descriptor);
   const female = a.gender === 'female';
-  const hairFile = a.head === 'bald' ? null : HAIR_FILES[a.head][female ? 'female' : 'male'];
+  const hairFile = a.style === 'bald' ? null : HAIR_FILES[a.style][female ? 'female' : 'male'];
   const [t, femaleT, hairT] = await Promise.all([
     loadAsset(female ? 'body_female.glb' : 'body_male.glb'),
     loadAsset('body_female.glb'), // the hairstyles are authored around the female head
@@ -475,7 +487,7 @@ export async function buildAvatar(descriptor) {
     else if (n.isSkinnedMesh && /hair/i.test(n.material.name)) brows = n;
   });
   const bone = Object.fromEntries(body.skeleton.bones.map((b) => [b.name, b]));
-  const stateOf = (part) => (part === 'head' || part === 'torso' ? 'healthy' : a.limbs[part]);
+  const stateOf = (part) => a.parts[part];
 
   // 1. Reshape: body type + morphed bulk.
   const factor = shapeFactors(a);
@@ -498,16 +510,27 @@ export async function buildAvatar(descriptor) {
     if (state === 'morphed') return chromeMaterial();
     return material(baseSkin, a.skin);
   });
-  if (brows) brows.material = material(brows.material, a.hair);
+  // Brows and hair follow the head: hair-colored, or metal when the head is
+  // morphed. (A clone of the hair material, not chromeMaterial(), so the
+  // strand cutouts in its texture alpha still apply.)
+  const hairMaterial = (base) => {
+    if (stateOf('head') !== 'morphed') return material(base, a.hair);
+    const m = material(base, CHROME, { metalness: 1, roughness: 0.24, flatShading: true });
+    m.userData.chrome = true;
+    return m;
+  };
+  if (brows) brows.material = hairMaterial(brows.material);
 
   // 3. Clothing. A morphed leg's trouser ends at the knee and its shoe is
-  // gone, showing the metal shin and foot.
+  // gone, showing the metal shin and foot; a morphed torso sheds the whole
+  // shirt (sleeves too). A torso wound stains the shirt, not the waistband.
   const cloth = buildClothing(t, geo, positions, (garment, part) => {
-    const state = stateOf(part);
+    const state = garment === 'pants' && part === 'torso' ? 'healthy' : stateOf(part);
     const m = garment === 'shoe'
       ? plainMaterial(SHOE, 0.5)
       : plainMaterial(state === 'damaged' ? blend(a.outfit, BRUISE, 0.35) : a.outfit, 0.85);
     if (state === 'morphed' && (garment === 'shoe' || garment === 'shin')) m.visible = false;
+    if (garment === 'shirt' && stateOf('torso') === 'morphed') m.visible = false;
     return m;
   });
   const clothMesh = new THREE.SkinnedMesh(cloth.geometry, cloth.materials);
@@ -524,7 +547,7 @@ export async function buildAvatar(descriptor) {
   rotateBoneWorld(bone.upperarm_l, new THREE.Vector3(0, 0, 1), -ARM_DROP);
   rotateBoneWorld(bone.upperarm_r, new THREE.Vector3(0, 0, 1), ARM_DROP);
   for (const [limb, s] of [['leftArm', 'l'], ['rightArm', 'r']]) {
-    if (a.limbs[limb] === 'morphed') bone[`hand_${s}`].scale.setScalar(MORPH_HAND_SCALE);
+    if (a.parts[limb] === 'morphed') bone[`hand_${s}`].scale.setScalar(MORPH_HAND_SCALE);
   }
   root.updateMatrixWorld(true);
 
@@ -542,7 +565,7 @@ export async function buildAvatar(descriptor) {
   const BACK = new THREE.Vector3(0, 0, -1);
 
   for (const [limb, s, sign] of [['leftArm', 'l', 1], ['rightArm', 'r', -1]]) {
-    const state = a.limbs[limb];
+    const state = a.parts[limb];
     const from = worldPos(`lowerarm_${s}`);
     const to = worldPos(`hand_${s}`);
     const r = radius(`lowerarm_${s}`);
@@ -564,7 +587,7 @@ export async function buildAvatar(descriptor) {
   }
 
   for (const [limb, s] of [['leftLeg', 'l'], ['rightLeg', 'r']]) {
-    const state = a.limbs[limb];
+    const state = a.parts[limb];
     const from = worldPos(`calf_${s}`);
     const to = worldPos(`foot_${s}`);
     const r = radius(`calf_${s}`);
@@ -582,10 +605,47 @@ export async function buildAvatar(descriptor) {
     }
   }
 
+  // Head: a bandage round the brow, dipping toward the back.
+  if (stateOf('head') === 'damaged') {
+    const r = radius('Head');
+    const c = worldPos('Head').add(new THREE.Vector3(0, r * HEAD_BAND_HEIGHT, 0));
+    const band = attachAlong(bone.Head, new THREE.TorusGeometry(r * 1.08, 0.011, 8, 32).scale(0.92, 1.06, 1), bandage, c, c, 0, {
+      dir: new THREE.Vector3(0, 1, -0.22).normalize()
+    });
+    band.renderOrder = 1;
+  }
+
+  // Torso: wounds get two wraps round the middle - oval, and centred ahead
+  // of the spine, which runs near the back of the trunk; morphed grows a
+  // ridge of blades down the spine.
+  const trunkFrom = worldPos('spine_01');
+  const trunkTo = worldPos('neck_01');
+  if (stateOf('torso') === 'damaged') {
+    for (const [boneName, tt] of [['spine_01', 0.18], ['spine_02', 0.36]]) {
+      const r = radius(boneName);
+      attachAlong(bone[boneName], new THREE.TorusGeometry(r * 1.12 + CLOTH.shirt, 0.013, 8, 36).scale(1.12, 0.84, 1), bandage, trunkFrom, trunkTo, tt, {
+        offset: FORWARD.clone().multiplyScalar(r * TRUNK_WRAP_FORWARD)
+      });
+    }
+  }
+  if (stateOf('torso') === 'morphed') {
+    const r = radius('spine_02');
+    const up = new THREE.Vector3().subVectors(trunkTo, trunkFrom).normalize();
+    const along = up.clone().addScaledVector(BACK, 0.7).normalize(); // raked back
+    for (const [boneName, tt, size] of [['spine_01', 0.22, 0.8], ['spine_02', 0.48, 1], ['spine_03', 0.74, 0.85]]) {
+      const len = r * 1.6 * size;
+      const fin = new THREE.Mesh(bladeGeometry([
+        [0, 0], [r * 0.25, 0], [r * 1.0 * size, len * 0.8], [r * 0.75 * size, len], [0, len * 0.45]
+      ], r * 0.16, r * 0.08), chromeMaterial());
+      const origin = trunkFrom.clone().lerp(trunkTo, tt).addScaledVector(BACK, r * BACK_DEPTH);
+      attachOriented(bone[boneName], fin, origin, along, BACK);
+    }
+  }
+
   // 6. Hair, re-anchored from the female head it was authored on to this
   // body's head bone.
   if (hairT) {
-    const hair = new THREE.Mesh(hairT.hairMesh.geometry, material(hairT.hairMesh.material, a.hair));
+    const hair = new THREE.Mesh(hairT.hairMesh.geometry, hairMaterial(hairT.hairMesh.material));
     femaleT.headRestWorld.clone().invert().decompose(hair.position, hair.quaternion, hair.scale);
     bone.Head.add(hair);
   }

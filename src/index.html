@@ -47,20 +47,21 @@
         <div id="avatar-viewport" class="avatar-viewport"></div>
         <div id="avatar-name" class="avatar-name"></div>
 
-        <!-- Options are filled from avatar-parts.js (GENDERS / HEADS / LIMB_STATES). -->
+        <!-- Each part's Healthy / Damaged / Morphed state, and the hairstyle;
+             options are filled from avatar-parts.js (PART_STATES / HAIRSTYLES).
+             Gender lives in the sheet's meta grid. -->
         <div class="avatar-fields">
-          <label class="avatar-field"><span>Body</span><select id="avatar-gender"></select></label>
-          <label class="avatar-field"><span>Head</span><select id="avatar-head"></select></label>
-        </div>
-        <div class="avatar-fields">
-          <label class="avatar-field"><span>Left Arm</span><select data-avatar-limb="leftArm"></select></label>
-          <label class="avatar-field"><span>Right Arm</span><select data-avatar-limb="rightArm"></select></label>
-          <label class="avatar-field"><span>Left Leg</span><select data-avatar-limb="leftLeg"></select></label>
-          <label class="avatar-field"><span>Right Leg</span><select data-avatar-limb="rightLeg"></select></label>
+          <label class="avatar-field"><span>Torso</span><select data-avatar-part="torso"></select></label>
+          <label class="avatar-field"><span>Head</span><select data-avatar-part="head"></select></label>
+          <label class="avatar-field"><span>Left Arm</span><select data-avatar-part="leftArm"></select></label>
+          <label class="avatar-field"><span>Right Arm</span><select data-avatar-part="rightArm"></select></label>
+          <label class="avatar-field"><span>Left Leg</span><select data-avatar-part="leftLeg"></select></label>
+          <label class="avatar-field"><span>Right Leg</span><select data-avatar-part="rightLeg"></select></label>
         </div>
         <div class="avatar-colors">
           <label class="avatar-color-field"><span>Skin</span><input type="color" data-avatar-color="skin" /></label>
           <label class="avatar-color-field"><span>Hair</span><input type="color" data-avatar-color="hair" /></label>
+          <label class="avatar-color-field avatar-style-field"><span>Style</span><select id="avatar-style"></select></label>
           <label class="avatar-color-field"><span>Outfit</span><input type="color" data-avatar-color="outfit" /></label>
         </div>
         <label class="avatar-check">
@@ -88,6 +89,8 @@
         <label>Conspiracy <input type="text" data-meta="conspiracy" /></label>
 
         <label>Species <select id="species-select"></select></label>
+        <!-- Drives the avatar's body shape; owned by avatar-panel.js. -->
+        <label>Gender <select id="avatar-gender"></select></label>
       </div>
 
       <section class="block">

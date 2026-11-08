@@ -1,7 +1,7 @@
 import { renderMarkdown } from './markdown.js';
 import { renderCharacterSheet } from './character-view.js';
 import { AvatarViewer } from './avatar-view.js';
-import { LIMBS, LIMB_STATES } from './avatar-parts.js';
+import { BODY_PARTS, PART_STATES } from './avatar-parts.js';
 
 let renameTimer = null;
 let currentCampaignPath = null;
@@ -155,13 +155,12 @@ function setRosterMessage(entry, text) {
   entry.msgEl.classList.toggle('hidden', !text);
 }
 
-// "L.Arm damaged · R.Leg morphed" - only limbs that aren't healthy, so a
+// "Head damaged · R.Leg morphed" - only parts that aren't healthy, so a
 // glance at the roster shows who's hurt or changed without rotating models.
-function limbSummary(avatar) {
-  const short = { leftArm: 'L.Arm', rightArm: 'R.Arm', leftLeg: 'L.Leg', rightLeg: 'R.Leg' };
-  const stateLabel = Object.fromEntries(LIMB_STATES.map((st) => [st.id, st.label.toLowerCase()]));
-  return LIMBS.filter(({ id }) => avatar.limbs[id] !== 'healthy')
-    .map(({ id }) => `${short[id]} ${stateLabel[avatar.limbs[id]]}`)
+function partSummary(avatar) {
+  const stateLabel = Object.fromEntries(PART_STATES.map((st) => [st.id, st.label.toLowerCase()]));
+  return BODY_PARTS.filter(({ id }) => avatar.parts[id] !== 'healthy')
+    .map(({ id, short }) => `${short} ${stateLabel[avatar.parts[id]]}`)
     .join(' · ');
 }
 
@@ -176,7 +175,7 @@ function updateRosterCard(entry, player) {
     setRosterMessage(entry, 'Waiting for avatar...');
     return;
   }
-  entry.metaEl.textContent = [`Player${player.slot}`, limbSummary(avatar)].filter(Boolean).join(' · ');
+  entry.metaEl.textContent = [`Player${player.slot}`, partSummary(avatar)].filter(Boolean).join(' · ');
 
   // name/updatedAt change without the figure changing - key on the parts only.
   const { name, updatedAt, ...parts } = avatar;

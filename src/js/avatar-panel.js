@@ -1,5 +1,7 @@
 // The Avatar column on the left of the character sheet: a 3D viewer plus
-// part pickers (body type, head, each limb's state) and colors. Owns
+// each body part's Healthy / Damaged / Morphed state, hairstyle, and
+// colors. Also owns the Gender select in the sheet's meta grid, which
+// drives the avatar's body shape. Owns
 // character.avatar - a parts descriptor, see AVATAR_DEFAULT in
 // avatar-parts.js.
 //
@@ -9,7 +11,7 @@
 // the same figure from the descriptor, so nothing but that small JSON is
 // ever sent.
 import { AvatarViewer } from './avatar-view.js';
-import { GENDERS, HEADS, LIMB_STATES, normalizeAvatar } from './avatar-parts.js';
+import { GENDERS, HAIRSTYLES, PART_STATES, normalizeAvatar } from './avatar-parts.js';
 
 const NAME_SYNC_DEBOUNCE_MS = 600;
 const SPIN_PREF_KEY = 'avatar.spin';
@@ -20,7 +22,7 @@ let markDirty = () => {};
 let nameSyncTimer = null;
 
 const el = (id) => document.getElementById(id);
-const limbSelects = () => document.querySelectorAll('[data-avatar-limb]');
+const partSelects = () => document.querySelectorAll('[data-avatar-part]');
 const colorInputs = () => document.querySelectorAll('[data-avatar-color]');
 
 function avatar() {
@@ -55,9 +57,9 @@ function fillSelect(select, options) {
 function renderControls() {
   const a = avatar();
   el('avatar-gender').value = a.gender;
-  el('avatar-head').value = a.head;
-  limbSelects().forEach((select) => {
-    select.value = a.limbs[select.dataset.avatarLimb];
+  el('avatar-style').value = a.style;
+  partSelects().forEach((select) => {
+    select.value = a.parts[select.dataset.avatarPart];
   });
   colorInputs().forEach((input) => {
     input.value = a[input.dataset.avatarColor];
@@ -102,8 +104,8 @@ export function initAvatarPanel(options) {
   markDirty = options.markDirty;
 
   fillSelect(el('avatar-gender'), GENDERS);
-  fillSelect(el('avatar-head'), HEADS);
-  limbSelects().forEach((select) => fillSelect(select, LIMB_STATES));
+  fillSelect(el('avatar-style'), HAIRSTYLES);
+  partSelects().forEach((select) => fillSelect(select, PART_STATES));
 
   const spin = readSpinPref();
   el('avatar-spin').checked = spin;
@@ -113,13 +115,13 @@ export function initAvatarPanel(options) {
     avatar().gender = e.target.value;
     commit();
   });
-  el('avatar-head').addEventListener('change', (e) => {
-    avatar().head = e.target.value;
+  el('avatar-style').addEventListener('change', (e) => {
+    avatar().style = e.target.value;
     commit();
   });
-  limbSelects().forEach((select) => {
+  partSelects().forEach((select) => {
     select.addEventListener('change', () => {
-      avatar().limbs[select.dataset.avatarLimb] = select.value;
+      avatar().parts[select.dataset.avatarPart] = select.value;
       commit();
     });
   });

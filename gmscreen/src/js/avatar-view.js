@@ -130,7 +130,7 @@ export class AvatarViewer {
     this.controls.update();
   }
 
-  // Rebuilds the figure from a descriptor ({ gender, head, colors, limbs }).
+  // Rebuilds the figure from a descriptor ({ gender, style, colors, parts }).
   // The first build loads the body templates; after that a rebuild is quick
   // enough to do on every change, including live while a color picker is
   // being dragged. Builds can overlap, so only the newest one is shown.

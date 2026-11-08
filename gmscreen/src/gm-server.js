@@ -11,13 +11,13 @@ const MAX_PLAYER_SLOTS = 9;
 // JSON bodies: a full character with long History/Description text can be
 // well past the old 10 KB cap (which silently dropped the request).
 const MAX_JSON_BODY_BYTES = 2 * 1024 * 1024;
-// Avatar part ids - must match GENDERS / HEADS / LIMB_STATES / LIMBS in
+// Avatar option ids - must match GENDERS / HAIRSTYLES / PART_STATES / BODY_PARTS in
 // src/js/avatar-parts.js (this is CommonJS in the main process, so it
 // can't import that ES module directly).
-const AVATAR_GENDERS = ['male', 'female', 'nonbinary'];
-const AVATAR_HEADS = ['bald', 'buzzed', 'parted', 'long', 'buns'];
-const AVATAR_LIMB_STATES = ['healthy', 'damaged', 'morphed'];
-const AVATAR_LIMBS = ['leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
+const AVATAR_GENDERS = ['male', 'female', 'nonbinary', 'other'];
+const AVATAR_HAIRSTYLES = ['bald', 'buzzed', 'parted', 'long', 'buns'];
+const AVATAR_PART_STATES = ['healthy', 'damaged', 'morphed'];
+const AVATAR_PARTS = ['head', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 function generatePin() {
@@ -65,15 +65,16 @@ function sanitizeAvatar(raw) {
   const a = raw && typeof raw === 'object' ? raw : {};
   const oneOf = (v, options, fallback) => (options.includes(v) ? v : fallback);
   const color = (v, fallback) => (typeof v === 'string' && HEX_COLOR_RE.test(v) ? v : fallback);
-  const limbs = a.limbs && typeof a.limbs === 'object' ? a.limbs : {};
+  // Older player builds sent the hairstyle as `head` and arm/leg states as `limbs`.
+  const parts = [a.parts, a.limbs].find((p) => p && typeof p === 'object') || {};
   return {
     name: typeof a.name === 'string' ? a.name.slice(0, 120) : '',
     gender: oneOf(a.gender, AVATAR_GENDERS, 'nonbinary'),
-    head: oneOf(a.head, AVATAR_HEADS, 'parted'),
+    style: oneOf(a.style ?? a.head, AVATAR_HAIRSTYLES, 'parted'),
     skin: color(a.skin, '#c99a78'),
     hair: color(a.hair, '#3b2a1e'),
     outfit: color(a.outfit, '#4d5866'),
-    limbs: Object.fromEntries(AVATAR_LIMBS.map((id) => [id, oneOf(limbs[id], AVATAR_LIMB_STATES, 'healthy')])),
+    parts: Object.fromEntries(AVATAR_PARTS.map((id) => [id, oneOf(parts[id], AVATAR_PART_STATES, 'healthy')])),
     updatedAt: Date.now()
   };
 }
