@@ -130,11 +130,17 @@
 
             <div class="traits-grid">
               <div class="subsection">
-                <h3>Aspirations</h3>
+                <div class="subheader-row">
+                  <button type="button" id="aspirations-info-btn" class="info-icon-sm" aria-label="What Aspirations are for" title="What are Aspirations?">i</button>
+                  <h3>Aspirations</h3>
+                </div>
                 <div id="aspirations-list" class="line-list"></div>
               </div>
               <div class="subsection">
-                <h3>Conditions</h3>
+                <div class="subheader-row">
+                  <button type="button" id="conditions-info-btn" class="info-icon-sm" aria-label="What Conditions are for" title="What are Conditions?">i</button>
+                  <h3>Conditions</h3>
+                </div>
                 <div id="conditions-list" class="line-list"></div>
               </div>
               <div class="subsection">
@@ -153,7 +159,10 @@
           <h2>Health &amp; Willpower</h2>
 
           <div class="subsection">
-            <h3>Health <span class="derived-note">(Stamina + Size)</span></h3>
+            <div class="subheader-row">
+              <button type="button" id="health-info-btn" class="info-icon-sm" aria-label="What Health is for" title="What is Health?">i</button>
+              <h3>Health <span class="derived-note">(Stamina + Size)</span></h3>
+            </div>
             <div id="health-track"></div>
           </div>
 
@@ -167,12 +176,18 @@
           </div>
 
           <div class="subsection">
-            <h3>Integrity <span class="derived-note">(starts at 7)</span></h3>
+            <div class="subheader-row">
+              <button type="button" id="integrity-info-btn" class="info-icon-sm" aria-label="What Integrity is for" title="What is Integrity?">i</button>
+              <h3>Integrity <span class="derived-note">(starts at 7)</span></h3>
+            </div>
             <div id="integrity-ladder"></div>
           </div>
 
           <div class="subsection">
-            <h3 id="resource-label">Tracked Resource</h3>
+            <div class="subheader-row">
+              <button type="button" id="resource-info-btn" class="info-icon-sm" aria-label="What the tracked resource is for" title="What is this resource?">i</button>
+              <h3 id="resource-label">Tracked Resource</h3>
+            </div>
             <div id="resource-track" class="disabled"></div>
           </div>
 
@@ -203,11 +218,14 @@
 
           <div class="subsection">
             <div class="subheader-row">
-              <button type="button" id="beats-info-btn" class="info-icon-sm" aria-label="How Beats are earned" title="How are Beats earned?">i</button>
+              <button type="button" id="beats-info-btn" class="info-icon-sm" aria-label="How Beats are earned and used" title="How are Beats earned and used?">i</button>
               <h3>Beats</h3>
             </div>
             <div id="beats-track"></div>
-            <h3>Group Beats</h3>
+            <div class="subheader-row">
+              <button type="button" id="group-beats-info-btn" class="info-icon-sm" aria-label="How Group Beats are earned and used" title="How are Group Beats earned and used?">i</button>
+              <h3>Group Beats</h3>
+            </div>
             <div id="group-beats-track"></div>
           </div>
         </section>
@@ -399,6 +417,60 @@
       <p>You roll a dramatic failure on a chance die.</p>
       <p>A Breaking Point occurs: your character faces something that challenges their Integrity, morality, or sense of self.</p>
       <p>The Storyteller may award Beats for significant story developments, especially when a character&rsquo;s choices create real complications.</p>
+      <h3 class="modal-title">Using Beats</h3>
+      <p>Every 5 Beats become 1 Experience: when the fifth box fills, clear the track and add 1 to Experience. Experience buys new dots &mdash; see the Experience costs.</p>
+      <h3 class="modal-title">Group Beats</h3>
+      <p>Group Beats are earned by the group as a whole when the group&rsquo;s shared goals are met. Every 5 Group Beats give each member of the group 1 Experience; then the track clears.</p>
+    </div>
+  </div>
+
+  <div id="health-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="health-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Health</h3>
+      <p>Health is how much physical punishment your character can take: one box per point, equal to Stamina + Size.</p>
+      <p>Each point of damage fills a box. When every box is filled, your character is taken out &mdash; knocked out, severely injured, or dead, depending on the kind of damage and the Storyteller&rsquo;s ruling.</p>
+      <p>Lethal damage, which most weapons deal, is more serious than bashing damage. Serious injuries can also bring Conditions such as Arm Wrack, Leg Wrack, or Ongoing Injury.</p>
+    </div>
+  </div>
+
+  <div id="integrity-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="integrity-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Integrity</h3>
+      <p>Integrity measures your character&rsquo;s moral and psychological stability &mdash; not how good they are, but how well they hold together. Mortal characters start at 7.</p>
+      <p>Horror, trauma, betrayal, violence, and choices that violate the character&rsquo;s sense of self are <strong>Breaking Points</strong>. Define a few personal ones when you build the character. When one occurs, the Storyteller calls for an Integrity roll; failure can reduce Integrity or impose a Condition.</p>
+      <p>Facing a Breaking Point also earns a Beat. Integrity can be raised with Experience (2 per dot).</p>
+    </div>
+  </div>
+
+  <div id="resource-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="resource-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 id="resource-info-title" class="modal-title">Tracked Resource</h3>
+      <p id="resource-info-current"></p>
+      <p>Each species in your Chronicle can have its own resource pool &mdash; for example Blood Pool for Vampires, Rage for Werewolves, Swarm for the Changed, or Luck for Humans. It fuels that species&rsquo; abilities: the species&rsquo; rules say what spends points, how they&rsquo;re regained, and any limit on how many you can hold.</p>
+      <p>Mark the points your character currently has. The details for your species are in the Game Setting and Campaign Rules tabs.</p>
+    </div>
+  </div>
+
+  <div id="aspirations-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="aspirations-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Aspirations</h3>
+      <p>Aspirations are short statements of what your character wants to accomplish &mdash; or what you, as a player, want to see happen to them. They are active goals that give the Storyteller story hooks to build scenes around.</p>
+      <p>Keep three at a time, with a mix of short-term and long-term goals.</p>
+      <p>Fulfilling an Aspiration earns a Beat; replace it with a new one at the end of the session, or when appropriate. One that no longer fits the story can be swapped between chapters with Storyteller approval &mdash; for changed circumstances, not to dodge a difficult goal. Getting Started has examples.</p>
+    </div>
+  </div>
+
+  <div id="conditions-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="conditions-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Conditions</h3>
+      <p>Conditions are temporary states that change what your character can do &mdash; for example Knocked Down, Stunned, Arm Wrack, Blinded, or Ongoing Injury. They come from combat and injuries, failed Integrity rolls at Breaking Points, powers, and the story.</p>
+      <p>Write down each Condition your character has and its effect. Many describe what resolves them; resolving one that way removes it and earns a Beat.</p>
+      <p>The full list used at this table is on the Combat Rules tab.</p>
     </div>
   </div>
 

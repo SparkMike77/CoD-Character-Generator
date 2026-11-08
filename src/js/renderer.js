@@ -985,16 +985,23 @@ function closeAboutModal() {
   document.getElementById('about-modal').classList.add('hidden');
 }
 
-function initAttributesInfoModal() {
-  const openBtn = document.getElementById('attributes-info-btn');
-  const overlay = document.getElementById('attributes-info-modal');
-  const closeBtn = document.getElementById('attributes-info-close');
-  if (!openBtn || !overlay || !closeBtn) return;
+// An "i" button that opens an explanatory popup: <name>-info-btn opens
+// <name>-info-modal, closed by <name>-info-close, a click on the backdrop,
+// or Escape. Extra buttons (e.g. Group Beats sharing the Beats popup) and
+// an onOpen hook (to fill in live content) are optional.
+function initInfoModal(name, { extraButtons = [], onOpen } = {}) {
+  const overlay = document.getElementById(`${name}-info-modal`);
+  const closeBtn = document.getElementById(`${name}-info-close`);
+  const openBtns = [`${name}-info-btn`, ...extraButtons].map((id) => document.getElementById(id)).filter(Boolean);
+  if (!overlay || !closeBtn || !openBtns.length) return;
 
-  const open = () => overlay.classList.remove('hidden');
+  const open = () => {
+    if (onOpen) onOpen();
+    overlay.classList.remove('hidden');
+  };
   const close = () => overlay.classList.add('hidden');
 
-  openBtn.addEventListener('click', open);
+  openBtns.forEach((btn) => btn.addEventListener('click', open));
   closeBtn.addEventListener('click', close);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) close();
@@ -1004,61 +1011,13 @@ function initAttributesInfoModal() {
   });
 }
 
-function initSkillsInfoModal() {
-  const openBtn = document.getElementById('skills-info-btn');
-  const overlay = document.getElementById('skills-info-modal');
-  const closeBtn = document.getElementById('skills-info-close');
-  if (!openBtn || !overlay || !closeBtn) return;
-
-  const open = () => overlay.classList.remove('hidden');
-  const close = () => overlay.classList.add('hidden');
-
-  openBtn.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) close();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
-  });
-}
-
-function initBeatsInfoModal() {
-  const openBtn = document.getElementById('beats-info-btn');
-  const overlay = document.getElementById('beats-info-modal');
-  const closeBtn = document.getElementById('beats-info-close');
-  if (!openBtn || !overlay || !closeBtn) return;
-
-  const open = () => overlay.classList.remove('hidden');
-  const close = () => overlay.classList.add('hidden');
-
-  openBtn.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) close();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
-  });
-}
-
-function initExperienceInfoModal() {
-  const openBtn = document.getElementById('experience-info-btn');
-  const overlay = document.getElementById('experience-info-modal');
-  const closeBtn = document.getElementById('experience-info-close');
-  if (!openBtn || !overlay || !closeBtn) return;
-
-  const open = () => overlay.classList.remove('hidden');
-  const close = () => overlay.classList.add('hidden');
-
-  openBtn.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) close();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
-  });
+// The tracked-resource popup names the current species' resource, if any.
+function fillResourceInfo() {
+  const label = character.resource && character.resource.label;
+  document.getElementById('resource-info-title').textContent = label || 'Tracked Resource';
+  document.getElementById('resource-info-current').textContent = label
+    ? `${label} is the resource your character's species tracks.`
+    : "Your character's species doesn't track a resource yet - choose a Chronicle and Species first.";
 }
 
 /* ---------- Rules panes (System Rules / Campaign Rules tabs) ---------- */
@@ -1359,11 +1318,16 @@ function initAttributeDetailModal() {
 initTabs();
 initToolbar();
 initMenuBridge();
-initAttributesInfoModal();
+initInfoModal('attributes');
 initAttributeDetailModal();
-initSkillsInfoModal();
-initBeatsInfoModal();
-initExperienceInfoModal();
+initInfoModal('skills');
+initInfoModal('beats', { extraButtons: ['group-beats-info-btn'] });
+initInfoModal('experience');
+initInfoModal('health');
+initInfoModal('integrity');
+initInfoModal('resource', { onOpen: fillResourceInfo });
+initInfoModal('aspirations');
+initInfoModal('conditions');
 initAboutModal();
 initSizeControl();
 initRulesPanes();

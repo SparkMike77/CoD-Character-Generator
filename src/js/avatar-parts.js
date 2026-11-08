@@ -103,19 +103,34 @@ export function normalizeAvatar(raw) {
 /* ---------- Tuning ---------- */
 
 // Cross-section factors per bone (1 = unchanged; <1 slimmer, >1 bulkier).
-// Keys are bone names without their _l/_r suffix.
+// Keys are bone names without their _l/_r suffix. A number scales the
+// cross-section evenly; { w, d } scales width (side to side) and depth
+// (front to back) separately.
 const BODY_SHAPE = {
   male: { spine_01: 0.94, spine_02: 0.93, spine_03: 0.93, neck_01: 0.95, upperarm: 0.86, lowerarm: 0.9, thigh: 0.92, calf: 0.94 },
   // pelvis/thigh: the Superhero female's hips are extreme; ~15% narrower.
   female: { pelvis: 0.85, spine_01: 0.97, spine_02: 0.97, spine_03: 0.97, upperarm: 0.9, lowerarm: 0.93, thigh: 0.88, calf: 0.95 },
-  nonbinary: { pelvis: 0.93, spine_01: 0.88, spine_02: 0.86, spine_03: 0.85, neck_01: 0.92, upperarm: 0.8, lowerarm: 0.85, thigh: 0.86, calf: 0.88 }
+  // Androgynous: the male body keeps its depth (chest, back, profile) but
+  // is narrowed side to side to the female torso's widths - measured
+  // relative to height, since the viewer shows every figure the same
+  // height - with straight, male-like hips rather than the female flare.
+  nonbinary: {
+    pelvis: { w: 0.86, d: 0.95 },
+    spine_01: { w: 0.8, d: 0.94 },
+    spine_02: { w: 0.84, d: 0.93 },
+    spine_03: { w: 0.71, d: 0.93 },
+    neck_01: { w: 0.82, d: 0.92 },
+    upperarm: 0.8, lowerarm: 0.85, thigh: 0.86, calf: 0.88
+  }
 };
-// Non-Binary narrows the shoulders by moving the arms in along the
-// collarbone (a bone translation, which doesn't cascade like scale).
-const SHOULDER_WIDTH = { male: 1, female: 1, nonbinary: 0.86 };
+// Shoulder span (distance between the shoulder joints) as a fraction of
+// the body's own: Non-Binary's matches the female span relative to height.
+// Done by moving the arms in along the collarbone (a bone translation,
+// which doesn't cascade like scale).
+const SHOULDER_SPAN = { male: 1, female: 1, nonbinary: 0.74 };
 // "Other" is, for now, built exactly like Non-Binary.
 BODY_SHAPE.other = BODY_SHAPE.nonbinary;
-SHOULDER_WIDTH.other = SHOULDER_WIDTH.nonbinary;
+SHOULDER_SPAN.other = SHOULDER_SPAN.nonbinary;
 // Morphed limbs are liquid metal reshaped into weapons (think T-1000):
 // sleek rather than bulky, the hand replaced by a flat blade, a fin blade
 // down the shin. Faceted (flat-shaded) chrome for a hard, blocky read.
@@ -308,18 +323,34 @@ function shapeFactors(a) {
     const key = FINGER_RE.test(base) ? 'finger' : base;
     let f = shape[key] ?? 1;
     const part = partOfBone(boneName);
-    if (a.parts[part] === 'morphed') f *= MORPH_BULK[key] ?? 1; // (only limb bones have entries)
-    return f;
+    const bulk = a.parts[part] === 'morphed' ? MORPH_BULK[key] ?? 1 : 1; // (only limb bones have entries)
+    if (typeof f === 'number') return f * bulk;
+    return { w: f.w * bulk, d: f.d * bulk };
   };
+}
+
+// One number for a factor that may be { w, d } - for sizing props.
+function meanFactor(f) {
+  return typeof f === 'number' ? f : (f.w + f.d) / 2;
 }
 
 // Reshaped vertex positions (mesh-local), per the module comment: each
 // vertex moves radially about each influencing bone's axis by that bone's
-// factor, blended by skin weight.
+// factor, blended by skin weight. A { w, d } factor splits the radial
+// offset into its side-to-side component (world X, made perpendicular to
+// the bone) and the rest, scaled separately. Bones lying along X (the
+// collarbones) have no side-to-side cross-section, so they use the mean.
 function reshapePositions(t, geo, factorFor) {
   const count = geo.attributes.position.count;
   const out = new Float32Array(count * 3);
-  const factors = t.boneNames.map(factorFor);
+  const factors = t.boneNames.map((name, j) => {
+    const f = factorFor(name);
+    if (typeof f === 'number') return f;
+    const axis = t.boneAxis[j];
+    const side = new THREE.Vector3(1, 0, 0).addScaledVector(axis, -axis.x);
+    return side.length() > 0.5 ? { ...f, side: side.normalize() } : meanFactor(f);
+  });
+  const radial = new THREE.Vector3();
   const skinIndex = geo.attributes.skinIndex;
   const skinWeight = geo.attributes.skinWeight;
   const v = new THREE.Vector3();
@@ -336,11 +367,19 @@ function reshapePositions(t, geo, factorFor) {
       const f = factors[j];
       if (f === 1) {
         acc.addScaledVector(v, w);
-      } else {
-        const along = c.copy(v).sub(t.boneOrigin[j]).dot(t.boneAxis[j]);
-        c.copy(t.boneOrigin[j]).addScaledVector(t.boneAxis[j], along); // closest point on the bone axis
-        acc.addScaledVector(c.lerp(v, f), w);
+        total += w;
+        continue;
       }
+      const along = c.copy(v).sub(t.boneOrigin[j]).dot(t.boneAxis[j]);
+      c.copy(t.boneOrigin[j]).addScaledVector(t.boneAxis[j], along); // closest point on the bone axis
+      radial.subVectors(v, c);
+      if (typeof f === 'number') {
+        radial.multiplyScalar(f);
+      } else {
+        const sideways = radial.dot(f.side);
+        radial.multiplyScalar(f.d).addScaledVector(f.side, sideways * (f.w - f.d));
+      }
+      acc.addScaledVector(c.add(radial), w);
       total += w;
     }
     if (total > 0) acc.divideScalar(total); else acc.copy(v);
@@ -550,7 +589,18 @@ export async function buildAvatar(descriptor) {
   body.parent.add(clothMesh);
 
   // 4. Pose: shoulders (narrower for Non-Binary), then arms down.
-  for (const side of ['l', 'r']) bone[`upperarm_${side}`].position.multiplyScalar(SHOULDER_WIDTH[a.gender]);
+  const span = SHOULDER_SPAN[a.gender];
+  if (span !== 1) {
+    root.updateMatrixWorld(true);
+    const l = bone.upperarm_l.getWorldPosition(new THREE.Vector3());
+    const r = bone.upperarm_r.getWorldPosition(new THREE.Vector3());
+    const inward = ((1 - span) * l.distanceTo(r)) / 2; // world distance each arm moves in
+    for (const side of ['l', 'r']) {
+      const arm = bone[`upperarm_${side}`];
+      const reach = arm.getWorldPosition(new THREE.Vector3()).distanceTo(arm.parent.getWorldPosition(new THREE.Vector3()));
+      arm.position.multiplyScalar(Math.max(0, 1 - inward / reach));
+    }
+  }
   rotateBoneWorld(bone.upperarm_l, new THREE.Vector3(0, 0, 1), -ARM_DROP);
   rotateBoneWorld(bone.upperarm_r, new THREE.Vector3(0, 0, 1), ARM_DROP);
   for (const [limb, s] of [['leftArm', 'l'], ['rightArm', 'r']]) {
@@ -566,7 +616,7 @@ export async function buildAvatar(descriptor) {
   const bindIdx = (name) => t.boneNames.indexOf(name);
   const unit = worldPos('lowerarm_l').distanceTo(worldPos('hand_l')) /
     t.boneOrigin[bindIdx('lowerarm_l')].distanceTo(t.boneOrigin[bindIdx('hand_l')]);
-  const radius = (name) => t.boneRadius[bindIdx(name)] * factor(name) * unit;
+  const radius = (name) => t.boneRadius[bindIdx(name)] * meanFactor(factor(name)) * unit;
   const bandage = plainMaterial(BANDAGE, 0.9);
   const FORWARD = new THREE.Vector3(0, 0, 1);
   const BACK = new THREE.Vector3(0, 0, -1);
