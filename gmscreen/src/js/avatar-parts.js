@@ -17,7 +17,8 @@
 //     blended by its skin weights. (Bone scale would cascade down the
 //     hierarchy - slimming the waist would also squash the head.) Male and
 //     Female get a mild toning-down; Non-Binary is the female body with the
-//     chest flattened and the hips straightened (with normals recomputed for
+//     chest flattened, the hips straightened and the torso surface smoothed
+//     of its sculpted musculature (BODY_SMOOTH), with normals recomputed for
 //     the new shape). Morphed limbs use the same mechanism in reverse, to
 //     bulk up.
 //   - The six parts are the body mesh split by which bone dominates each
@@ -146,10 +147,19 @@ const BODY_SHAPE = {
   nonbinary: {
     pelvis: { w: 0.76, d: 0.97, back: { from: 0.55, k: 0.35 } },
     spine_01: { w: 1.12, d: 1.02 },
-    spine_02: { w: 1, d: 0.98, front: { from: 0.6, k: 0.25 } },
-    spine_03: { w: 1, d: 0.97, front: { from: 0.6, k: 0.2 } },
+    spine_02: { w: 1, d: 0.98, front: { from: 0.5, k: 0.15 } },
+    spine_03: { w: 1, d: 0.97, front: { from: 0.5, k: 0.12 } },
     upperarm: 0.94, lowerarm: 0.95, thigh: { w: 0.76, d: 0.92, back: { from: 0.6, k: 0.5 } }, calf: 0.95
   }
+};
+// Surface smoothing after reshaping, per body type: iterations of a
+// non-shrinking (Taubin) smooth, applied in proportion to each vertex's
+// skin weight on `bones` - so it fades out toward the neck, arms and legs.
+// Non-Binary's softens the torso's sculpted musculature (abs, pec and rib
+// edges) and the crease left under the flattened bust; the shirt, made from
+// this surface, comes out smooth too.
+const BODY_SMOOTH = {
+  nonbinary: { iterations: 14, bones: { pelvis: 0.6, spine_01: 1, spine_02: 1, spine_03: 1, clavicle_l: 0.7, clavicle_r: 0.7 } }
 };
 // Shoulder span (distance between the shoulder joints) as a fraction of
 // the body's own: Non-Binary's a little broader than the female body's.
@@ -376,6 +386,71 @@ function meanFactor(f) {
 // collarbones) have no side-to-side cross-section, so they use the mean.
 // Smooth vertex normals for the geometry's current positions, averaged
 // across vertices sharing a position (UV seams), so no seams show.
+// Vertex neighbours across the whole surface (UV-seam duplicates, which
+// share a position, count as one vertex). Cached per template.
+function surfaceNeighbours(t, geo) {
+  if (t.neighbours) return t.neighbours;
+  const pos = t.bindPos;
+  const keyOf = (i) => `${Math.round(pos[i * 3] * 1e5)},${Math.round(pos[i * 3 + 1] * 1e5)},${Math.round(pos[i * 3 + 2] * 1e5)}`;
+  const welded = new Map();
+  const rep = new Uint32Array(pos.length / 3);
+  for (let i = 0; i < rep.length; i++) {
+    const key = keyOf(i);
+    if (!welded.has(key)) welded.set(key, i);
+    rep[i] = welded.get(key);
+  }
+  const sets = new Map();
+  const index = geo.index.array;
+  for (let f = 0; f < index.length; f += 3) {
+    for (let e = 0; e < 3; e++) {
+      const a = rep[index[f + e]];
+      const b = rep[index[f + ((e + 1) % 3)]];
+      if (a === b) continue;
+      if (!sets.has(a)) sets.set(a, new Set());
+      if (!sets.has(b)) sets.set(b, new Set());
+      sets.get(a).add(b);
+      sets.get(b).add(a);
+    }
+  }
+  t.neighbours = { rep, lists: new Map([...sets].map(([k, v]) => [k, [...v]])) };
+  return t.neighbours;
+}
+
+// Taubin smoothing (alternate shrink / inflate steps, so the overall size
+// holds) on mesh-local `positions`, in place - see BODY_SMOOTH.
+function smoothSurface(t, geo, positions, { iterations, bones }) {
+  const { rep, lists } = surfaceNeighbours(t, geo);
+  const skinIndex = geo.attributes.skinIndex;
+  const skinWeight = geo.attributes.skinWeight;
+  const boneAmount = t.boneNames.map((name) => bones[name] || 0);
+  const amount = new Float32Array(rep.length);
+  for (let i = 0; i < rep.length; i++) {
+    let sum = 0;
+    for (let k = 0; k < 4; k++) sum += skinWeight.getComponent(i, k) * boneAmount[skinIndex.getComponent(i, k)];
+    amount[i] = Math.min(1, sum);
+  }
+  const verts = [...lists.keys()].filter((v) => amount[v] > 0.01);
+  const next = new Float32Array(positions.length);
+  for (let it = 0; it < iterations * 2; it++) {
+    const factor = it % 2 === 0 ? 0.5 : -0.53;
+    next.set(positions);
+    for (const v of verts) {
+      const ns = lists.get(v);
+      for (let c = 0; c < 3; c++) {
+        let mean = 0;
+        for (const n of ns) mean += positions[n * 3 + c];
+        mean /= ns.length;
+        next[v * 3 + c] = positions[v * 3 + c] + factor * amount[v] * (mean - positions[v * 3 + c]);
+      }
+    }
+    positions.set(next);
+  }
+  // Seam duplicates follow their representative.
+  for (let i = 0; i < rep.length; i++) {
+    if (rep[i] !== i) for (let c = 0; c < 3; c++) positions[i * 3 + c] = positions[rep[i] * 3 + c];
+  }
+}
+
 function weldedNormals(geo) {
   const temp = new THREE.BufferGeometry();
   temp.setAttribute('position', geo.attributes.position);
@@ -609,6 +684,7 @@ export async function buildAvatar(descriptor) {
   // 1. Reshape: body type + morphed bulk.
   const factor = shapeFactors(a);
   const positions = reshapePositions(t, t.body.geometry, factor);
+  if (BODY_SMOOTH[a.gender]) smoothSurface(t, t.body.geometry, positions, BODY_SMOOTH[a.gender]);
   const geo = new THREE.BufferGeometry();
   for (const [name, attr] of Object.entries(t.body.geometry.attributes)) {
     geo.setAttribute(name, name === 'position' ? new THREE.BufferAttribute(positions, 3) : attr);
@@ -619,7 +695,7 @@ export async function buildAvatar(descriptor) {
   // changes; a body reshaped hard enough to change its silhouette (front /
   // back cuts) gets normals for its new shape, or it's still lit - and its
   // clothes, pushed out along them, shaped - as the old one.
-  if (Object.values(BODY_SHAPE[a.gender]).some((f) => f && (f.front || f.back))) geo.setAttribute('normal', weldedNormals(geo));
+  if (BODY_SMOOTH[a.gender] || Object.values(BODY_SHAPE[a.gender]).some((f) => f && (f.front || f.back))) geo.setAttribute('normal', weldedNormals(geo));
   geo.computeBoundingSphere();
   geo.userData.ownGeometry = true;
   body.geometry = geo;
