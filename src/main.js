@@ -182,6 +182,8 @@ ipcMain.handle('rules:openMarkdown', async () => {
 ipcMain.handle('getting-started:open', () => openGettingStartedWindow());
 
 ipcMain.handle('gmscreen:known', () => gmScreenClient.listKnown());
+ipcMain.handle('gmscreen:live', () => gmScreenClient.listLive());
+ipcMain.handle('gmscreen:lookup', (_event, address) => gmScreenClient.lookup(address));
 ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenClient.pair({ id, host, port, pin }));
 ipcMain.handle('gmscreen:check', (_event, { id, host, port }) => gmScreenClient.check({ id, host, port }));
 ipcMain.handle('gmscreen:forget', (_event, id) => gmScreenClient.forget(id));

@@ -19,6 +19,13 @@ import { initAvatarPanel, avatarCharacterLoaded } from './avatar-panel.js';
 
 let character = defaultCharacter();
 let currentFilePath = null;
+// Shown in the toolbar. Usually the path's last segment, but the Android app
+// hands back content:// URIs, so its results carry a displayName.
+let currentFileName = null;
+
+function fileLabel(result) {
+  return result.displayName || result.filePath.split(/[\\/]/).pop();
+}
 let dirty = false;
 let attributeConflict = false;
 
@@ -56,7 +63,7 @@ function setDirty(value) {
 function updateFileStatus() {
   const el = document.getElementById('file-status');
   const name = character.meta.name || 'Unnamed character';
-  const location = currentFilePath ? currentFilePath.split(/[\\/]/).pop() : 'unsaved';
+  const location = currentFilePath ? currentFileName : 'unsaved';
   el.textContent = `${name} — ${location}${dirty ? ' *' : ''}`;
 }
 
@@ -847,6 +854,7 @@ async function handleNew() {
   if (dirty && !window.confirm('Discard unsaved changes and start a new character?')) return;
   character = defaultCharacter();
   currentFilePath = null;
+  currentFileName = null;
   setDirty(false);
   renderAll();
   await refreshCampaignUI();
@@ -859,6 +867,7 @@ async function handleOpen() {
   if (!result) return;
   character = mergeCharacter(result.data);
   currentFilePath = result.filePath;
+  currentFileName = fileLabel(result);
   setDirty(false);
   renderAll();
   await refreshCampaignUI();
@@ -885,6 +894,7 @@ async function handleSave() {
   const result = await window.codApi.saveCharacter(character, currentFilePath);
   if (!result) return;
   currentFilePath = result.filePath;
+  currentFileName = fileLabel(result);
   setDirty(false);
 }
 
@@ -897,6 +907,7 @@ async function handleSaveAs() {
   const result = await window.codApi.saveCharacter(character, null);
   if (!result) return;
   currentFilePath = result.filePath;
+  currentFileName = fileLabel(result);
   setDirty(false);
 }
 
@@ -912,6 +923,7 @@ function initTabs() {
       btn.classList.add('active');
       document.getElementById(btn.dataset.page).classList.add('active');
       document.body.classList.toggle('avatar-hidden', !AVATAR_PAGES.has(btn.dataset.page));
+      document.body.dataset.page = btn.dataset.page; // for page-specific layout (phones: style.css)
     });
   });
 }
@@ -1037,7 +1049,7 @@ function initRulesPane(prefix, defaultDoc) {
     if (!window.codApi) return;
     const result = await window.codApi.openMarkdownFile();
     if (!result) return;
-    filenameEl.textContent = result.filePath.split(/[\\/]/).pop();
+    filenameEl.textContent = fileLabel(result);
     contentEl.innerHTML = renderMarkdown(result.content);
   });
 }
@@ -1239,6 +1251,34 @@ function initGmSessions() {
 
   window.codApi.onGmScreenUp(gmHandleUp);
   window.codApi.onGmScreenDown(gmHandleDown);
+  // GMScreens found before this page finished loading (their 'up' events
+  // went nowhere).
+  window.codApi.listLiveGmScreens().then((live) => live.forEach(gmHandleUp));
+
+  const manualForm = document.getElementById('gmscreen-manual');
+  manualForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('gmscreen-address');
+    const errEl = document.getElementById('gmscreen-manual-error');
+    const findBtn = manualForm.querySelector('button');
+    errEl.classList.add('hidden');
+    findBtn.disabled = true;
+    const result = await window.codApi.lookupGmScreen(input.value);
+    findBtn.disabled = false;
+    if (!result.ok) {
+      errEl.textContent = result.error;
+      errEl.classList.remove('hidden');
+      return;
+    }
+    input.value = '';
+    // It now arrives like a discovered GMScreen (an 'up' event); open its
+    // PIN entry if it isn't paired yet.
+    const session = gmSessions.get(result.id);
+    if (session && session.status === 'needs-pin') {
+      gmExpandedId = result.id;
+      gmRenderList();
+    }
+  });
 
   gmRenderList();
   gmUpdateBadge();

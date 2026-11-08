@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- GMScreen is plain http on the local network, at whatever address the GM's computer has, so
+         cleartext can't be limited to known hosts. Only the native GM requests (MainActivity.http)
+         use it; the page itself is served from inside the app. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

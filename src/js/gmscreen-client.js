@@ -5,6 +5,7 @@ const { Bonjour } = require('bonjour-service');
 
 const MDNS_TYPE = 'gmscreen';
 const REQUEST_TIMEOUT_MS = 5000;
+const DEFAULT_GM_PORT = 4177; // GMScreen's fixed pairing port
 const CHARACTER_REQUEST_POLL_MS = 2000;
 
 // Prefers a routable IPv4 address advertised by the service over Windows'
@@ -90,7 +91,48 @@ class GmScreenClient extends EventEmitter {
       this.emit('down', { id });
     });
 
+    this._probeKnown();
     return this;
+  }
+
+  _markLive(info) {
+    this.live.set(info.id, info);
+    this.emit('up', info);
+  }
+
+  // Every GMScreen currently known to be reachable - for a page that loads
+  // after some 'up' events have already fired.
+  listLive() {
+    return [...this.live.values()];
+  }
+
+  // Discovery doesn't work on every network (or at all inside some
+  // sandboxes / ChromeOS's Linux container), so GMScreens paired before are
+  // also tried directly at their last-known address on startup.
+  async _probeKnown() {
+    const connections = await this._loadConnections();
+    for (const entry of Object.values(connections)) {
+      if (this.live.has(entry.id)) continue;
+      const { status, data } = await requestJson(entry.host, entry.port, 'GET', '/session');
+      if (status === 200 && data.id === entry.id && !this.live.has(entry.id)) {
+        this._markLive({ id: entry.id, name: data.name || entry.name, host: entry.host, port: entry.port });
+      }
+    }
+  }
+
+  // "Enter the GM's address" for when discovery doesn't find it: asks
+  // GMScreen who it is (GET /session needs no pairing) and, if it answers,
+  // treats it exactly like a discovered one. Accepts "host" or "host:port".
+  async lookup(address) {
+    const match = /^\s*([^\s:]+)(?::(\d{1,5}))?\s*$/.exec(address || '');
+    if (!match) return { ok: false, error: 'Enter an address like 192.168.1.20 or 192.168.1.20:4177.' };
+    const host = match[1];
+    const port = match[2] ? Number(match[2]) : DEFAULT_GM_PORT;
+    const { status, data, error } = await requestJson(host, port, 'GET', '/session');
+    if (error || status !== 200 || !data.id) return { ok: false, error: `No GMScreen answered at ${host}:${port}.` };
+    const info = { id: data.id, name: data.name || host, host, port };
+    this._markLive(info);
+    return { ok: true, ...info };
   }
 
   stop() {

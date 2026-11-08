@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:statusBarColor">@color/ink</item>
+        <item name="android:navigationBarColor">@color/ink</item>
+    </style>
+    <!-- The sheet's own palette: background, accent and text colors from src/css/style.css. -->
+    <color name="background">#FFF7F6F3</color>
+    <color name="accent">#FF6B4F3B</color>
+    <color name="ink">#FF22201C</color>
+</resources>

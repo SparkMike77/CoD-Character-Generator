@@ -12,11 +12,13 @@
     "dist": "npm run vendor && electron-builder --win",
     "dist:all": "npm run dist && npm --prefix gmscreen install && npm --prefix gmscreen run dist",
     "vendor": "node scripts/vendor-three.js .",
-    "avatar-assets": "node scripts/prepare-avatar-assets.js"
+    "avatar-assets": "node scripts/prepare-avatar-assets.js",
+    "android": "node scripts/build-android.js"
   },
   "devDependencies": {
     "electron": "^31.3.1",
     "electron-builder": "^24.13.3",
+    "esbuild": "^0.25.10",
     "three": "^0.187.0"
   },
   "build": {

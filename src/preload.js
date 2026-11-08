@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('codApi', {
     ipcRenderer.on('gmscreen:character-request', (_event, info) => callback(info));
   },
   listKnownGmScreens: () => ipcRenderer.invoke('gmscreen:known'),
+  listLiveGmScreens: () => ipcRenderer.invoke('gmscreen:live'),
+  lookupGmScreen: (address) => ipcRenderer.invoke('gmscreen:lookup', address),
   pairGmScreen: (id, host, port, pin) => ipcRenderer.invoke('gmscreen:pair', { id, host, port, pin }),
   checkGmScreen: (id, host, port) => ipcRenderer.invoke('gmscreen:check', { id, host, port }),
   forgetGmScreen: (id) => ipcRenderer.invoke('gmscreen:forget', id),

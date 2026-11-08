@@ -6,8 +6,9 @@
      which maps the bare 'three' import used by three.js's addons to the copy that
      scripts/vendor-three.js puts in src/vendor/ (see that script for why). If you
      edit the import map text, recompute its sha256 (base64) and update it here.
-     img-src blob: is for textures embedded in GLB avatar models. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UIiVg22PC4ABTdJ22WSTrliOLGvfsog+qnGKL+MGxbk='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;" />
+     img-src / connect-src blob: are for textures embedded in GLB avatar models
+     (Chromium's WebView, on Android, fetch()es them rather than using an img). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UIiVg22PC4ABTdJ22WSTrliOLGvfsog+qnGKL+MGxbk='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob:;" />
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <title>CoD Character Manager</title>
 <link rel="stylesheet" href="css/style.css" />
@@ -507,6 +508,16 @@
       <h3 class="modal-title">GM Sessions</h3>
       <p id="gmscreen-empty" class="hint">No GM sessions found on this network yet.</p>
       <div id="gmscreen-list" class="gmscreen-list"></div>
+      <!-- For networks where discovery doesn't find GMScreen: its address is
+           shown on GMScreen's Session tab ("Advertising as ..."). -->
+      <form id="gmscreen-manual" class="gmscreen-manual" autocomplete="off">
+        <label for="gmscreen-address" class="hint">Not listed? Enter the address shown on the GM's Session tab:</label>
+        <div class="gmscreen-manual-row">
+          <input id="gmscreen-address" type="text" inputmode="url" placeholder="192.168.1.20:4177" />
+          <button type="submit" class="add-row-btn">Find</button>
+        </div>
+        <div id="gmscreen-manual-error" class="gmscreen-error hidden"></div>
+      </form>
     </div>
   </div>
 
