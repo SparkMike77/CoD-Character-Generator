@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('gmApi', {
   },
   getPlayers: () => ipcRenderer.invoke('players:get'),
   requestCharacter: (playerId) => ipcRenderer.invoke('players:request', playerId),
+  setPlayerConditions: (playerId, conditions) => ipcRenderer.invoke('players:set-conditions', { playerId, conditions }),
   onPlayersUpdate: (callback) => {
     ipcRenderer.on('players:update', (_event, players) => callback(players));
   },

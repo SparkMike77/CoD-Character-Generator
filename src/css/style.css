@@ -853,6 +853,7 @@ textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
 .condition-row { display: flex; flex-direction: column; gap: 2px; }
 .condition-row select { width: 100%; color: var(--text-muted); }
 .condition-row select.condition-set { color: var(--text); font-weight: 600; }
+.conditions-gm-note { margin: 4px 0 0; font-size: 11.5px; color: var(--accent-strong); font-style: italic; }
 .condition-effect { font-size: 11.5px; color: var(--text-muted); line-height: 1.35; padding: 0 2px 4px; }
 
 /* Avatar part pickers overridden by a Condition (avatar-panel.js). */

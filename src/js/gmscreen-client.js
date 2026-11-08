@@ -158,6 +158,7 @@ class GmScreenClient extends EventEmitter {
         token: entry.token
       });
       if (status === 200 && data.pending) this.emit('character-request', { id });
+      if (status === 200 && Array.isArray(data.conditions)) this.emit('conditions', { id, conditions: data.conditions });
     }, CHARACTER_REQUEST_POLL_MS);
     this.pollTimers.set(id, timer);
   }

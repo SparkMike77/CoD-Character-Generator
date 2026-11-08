@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('codApi', {
   onGmScreenCharacterRequest: (callback) => {
     ipcRenderer.on('gmscreen:character-request', (_event, info) => callback(info));
   },
+  onGmScreenConditions: (callback) => {
+    ipcRenderer.on('gmscreen:conditions', (_event, info) => callback(info));
+  },
   listKnownGmScreens: () => ipcRenderer.invoke('gmscreen:known'),
   listLiveGmScreens: () => ipcRenderer.invoke('gmscreen:live'),
   lookupGmScreen: (address) => ipcRenderer.invoke('gmscreen:lookup', address),

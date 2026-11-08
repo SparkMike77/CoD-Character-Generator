@@ -74,6 +74,12 @@ function sanitizePose(raw) {
   };
 }
 
+const MAX_CONDITIONS = 24;
+function sanitizeConditions(raw) {
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim().slice(0, 120)).slice(0, MAX_CONDITIONS);
+}
+
 function sanitizeAvatar(raw) {
   const a = raw && typeof raw === 'object' ? raw : {};
   const oneOf = (v, options, fallback) => (options.includes(v) ? v : fallback);
@@ -89,6 +95,9 @@ function sanitizeAvatar(raw) {
     outfit: color(a.outfit, '#4d5866'),
     parts: Object.fromEntries(AVATAR_PARTS.map((id) => [id, oneOf(parts[id], AVATAR_PART_STATES, 'healthy')])),
     pose: sanitizePose(a.pose),
+    // The player's Conditions (names, as on their sheet). null = a player
+    // build from before Conditions were reported, which the GM can't edit.
+    conditions: sanitizeConditions(a.conditions),
     updatedAt: Date.now()
   };
 }
@@ -114,7 +123,7 @@ class GmServer extends EventEmitter {
     // Each paired Character Manager gets a slot (Player1..Player9, in pairing
     // order) for the life of this GMScreen run - slots are purely in-memory,
     // same as tokens/PIN, since a restart already forces everyone to re-pair.
-    this.tokens = new Map(); // token -> { pairedAt, slot, name, character, pendingRequest, avatar }
+    this.tokens = new Map(); // token -> { pairedAt, slot, name, character, pendingRequest, pendingConditions, avatar }
     this.nextSlot = 1;
     this.attempts = new Map(); // remoteAddress -> { count, lockUntil }
     this.campaign = null; // { campaignId, version, chronicle, body } | null
@@ -198,6 +207,19 @@ class GmServer extends EventEmitter {
     this.emit('players-change', this.getPlayers());
   }
 
+  // The GM sets a player's Conditions from the Roster. Held until that
+  // player's Character Manager next polls (it applies them to the sheet and
+  // pushes its avatar back, posed). Shown on the Roster straight away.
+  setConditions(playerId, conditions) {
+    const entry = this.tokens.get(playerId);
+    const list = sanitizeConditions(conditions);
+    if (!entry || !list || !entry.avatar || !entry.avatar.conditions) return false;
+    entry.pendingConditions = list;
+    entry.avatar = { ...entry.avatar, conditions: list };
+    this.emit('players-change', this.getPlayers());
+    return true;
+  }
+
   _publish() {
     this.mdnsService = this.bonjour.publish({
       name: `GMScreen-${this.instanceId.slice(0, 8)}`,
@@ -251,7 +273,7 @@ class GmServer extends EventEmitter {
           this.attempts.delete(remoteAddress);
           const token = crypto.randomBytes(24).toString('hex');
           const slot = this.nextSlot <= MAX_PLAYER_SLOTS ? this.nextSlot++ : null;
-          this.tokens.set(token, { pairedAt: Date.now(), slot, name: null, character: null, pendingRequest: false, avatar: null });
+          this.tokens.set(token, { pairedAt: Date.now(), slot, name: null, character: null, pendingRequest: false, pendingConditions: null, avatar: null });
           this.emit('change', this.getState());
           if (slot != null) this.emit('players-change', this.getPlayers());
           return sendJson(res, 200, { token, id: this.instanceId, name: this.sessionName });
@@ -276,7 +298,8 @@ class GmServer extends EventEmitter {
       // Character Manager polls this at a short interval while paired, since
       // GMScreen (the HTTP server here) has no way to dial back out to it -
       // one-shot: reading a pending request clears it, same as the GM's
-      // click only ever asking once.
+      // click only ever asking once. Also carries Conditions the GM set
+      // (`conditions`, likewise handed over once).
       if (req.method === 'GET' && req.url === '/character-request') {
         const token = this._bearerToken(req);
         const entry = token && this.tokens.get(token);
@@ -286,7 +309,9 @@ class GmServer extends EventEmitter {
           entry.pendingRequest = false;
           this.emit('players-change', this.getPlayers());
         }
-        return sendJson(res, 200, { pending });
+        const conditions = entry.pendingConditions;
+        entry.pendingConditions = null;
+        return sendJson(res, 200, conditions ? { pending, conditions } : { pending });
       }
 
       if (req.method === 'POST' && req.url === '/character') {
@@ -309,6 +334,9 @@ class GmServer extends EventEmitter {
         if (!entry) return sendJson(res, 401, { error: 'Invalid token' });
         const body = await readJsonBody(req);
         entry.avatar = sanitizeAvatar(body.avatar);
+        // A push sent before the player picked up the GM's change mustn't
+        // briefly undo it on the Roster.
+        if (entry.pendingConditions && entry.avatar.conditions) entry.avatar.conditions = entry.pendingConditions;
         this.emit('players-change', this.getPlayers());
         return sendJson(res, 200, { ok: true });
       }

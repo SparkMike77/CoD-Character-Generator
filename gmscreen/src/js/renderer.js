@@ -2,6 +2,7 @@ import { renderMarkdown } from './markdown.js';
 import { renderCharacterSheet } from './character-view.js';
 import { AvatarViewer } from './avatar-view.js';
 import { BODY_PARTS, PART_STATES } from './avatar-parts.js';
+import { CONDITIONS, findCondition } from './conditions.js';
 
 let renameTimer = null;
 let currentCampaignPath = null;
@@ -112,7 +113,7 @@ function renderPlayerPage(page, player) {
 // batch, character send). So cards are created once per player and only
 // patched - the figure is rebuilt only when that player's parts descriptor
 // actually changes, never just because something else updated.
-const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, shownKey }
+const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, condEl, shownKey, condKey }
 
 function rosterDisplayName(player) {
   return (player.avatar && player.avatar.name) || (player.character && player.name) || `Player${player.slot}`;
@@ -139,13 +140,17 @@ function createRosterCard(player) {
   openBtn.textContent = 'Open sheet';
   openBtn.addEventListener('click', () => activateTab(`page-player-${player.id}`));
 
+  const condEl = document.createElement('div');
+  condEl.className = 'roster-conditions';
+
   card.appendChild(viewport);
   card.appendChild(nameEl);
   card.appendChild(metaEl);
+  card.appendChild(condEl);
   card.appendChild(openBtn);
   document.getElementById('roster-grid').appendChild(card);
 
-  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, shownKey: null };
+  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, condEl, shownKey: null, condKey: null };
   rosterCards.set(player.id, entry);
   return entry;
 }
@@ -164,9 +169,81 @@ function partSummary(avatar) {
     .join(' · ');
 }
 
+// The player's Conditions, editable: each a chip (hover for its effect, x
+// to remove) plus an "Add" dropdown. A change goes to the player's sheet
+// (gmApi.setPlayerConditions), which applies it - stats, injuries, pose -
+// and sends its avatar back. Rebuilt only when the list changes.
+function renderRosterConditions(entry, player) {
+  const conditions = player.avatar ? player.avatar.conditions : undefined;
+  const key = JSON.stringify(conditions === undefined ? 'none' : conditions);
+  if (key === entry.condKey) return;
+  entry.condKey = key;
+  const wrap = entry.condEl;
+  clearEl(wrap);
+  if (!player.avatar) return;
+  const head = document.createElement('div');
+  head.className = 'roster-cond-head';
+  head.textContent = 'Conditions';
+  wrap.appendChild(head);
+  if (!Array.isArray(conditions)) {
+    const hint = document.createElement('p');
+    hint.className = 'roster-cond-hint';
+    hint.textContent = "This player's Character Manager is too old to share Conditions - they need to update it.";
+    wrap.appendChild(hint);
+    return;
+  }
+  const send = (list) => window.gmApi.setPlayerConditions(player.id, list);
+
+  const chips = document.createElement('div');
+  chips.className = 'roster-cond-chips';
+  conditions.forEach((name, idx) => {
+    const known = findCondition(name);
+    const chip = document.createElement('span');
+    chip.className = 'roster-cond-chip';
+    chip.title = known ? known.effect : "A custom Condition from the player's sheet";
+    const label = document.createElement('span');
+    label.textContent = name;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'roster-cond-remove';
+    remove.setAttribute('aria-label', `Remove ${name}`);
+    remove.textContent = '×';
+    remove.addEventListener('click', () => send(conditions.filter((_, i) => i !== idx)));
+    chip.append(label, remove);
+    chips.appendChild(chip);
+  });
+  if (!conditions.length) {
+    const none = document.createElement('span');
+    none.className = 'roster-cond-hint';
+    none.textContent = 'None';
+    chips.appendChild(none);
+  }
+  wrap.appendChild(chips);
+
+  const add = document.createElement('select');
+  add.className = 'roster-cond-add';
+  add.setAttribute('aria-label', `Add a Condition to ${rosterDisplayName(player)}`);
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '+ Add Condition...';
+  add.appendChild(placeholder);
+  CONDITIONS.filter((c) => !conditions.includes(c.name)).forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.name;
+    opt.textContent = c.name;
+    opt.title = c.effect;
+    add.appendChild(opt);
+  });
+  add.addEventListener('change', () => {
+    if (add.value) send([...conditions, add.value]);
+  });
+  wrap.appendChild(add);
+}
+
 function updateRosterCard(entry, player) {
   const avatar = player.avatar;
   entry.nameEl.textContent = rosterDisplayName(player);
+  renderRosterConditions(entry, player);
 
   if (!avatar) {
     entry.metaEl.textContent = `Player${player.slot}`;
@@ -177,8 +254,10 @@ function updateRosterCard(entry, player) {
   }
   entry.metaEl.textContent = [`Player${player.slot}`, partSummary(avatar)].filter(Boolean).join(' · ');
 
-  // name/updatedAt change without the figure changing - key on the parts only.
-  const { name, updatedAt, ...parts } = avatar;
+  // name/updatedAt/conditions change without the figure changing (the pose
+  // and injuries the Conditions cause come with the player's next push) -
+  // key on the parts only.
+  const { name, updatedAt, conditions, ...parts } = avatar;
   const key = JSON.stringify(parts);
   if (key === entry.shownKey) return;
   entry.shownKey = key; // set now, so a poll arriving mid-build doesn't restart it

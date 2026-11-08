@@ -479,6 +479,7 @@ function renderConditions() {
       setDirty(true);
       avatarConditionsChanged();
       renderConditionStats();
+      document.getElementById('conditions-gm-note').classList.add('hidden');
     });
 
     row.appendChild(select);
@@ -1380,8 +1381,33 @@ function closeCharacterRequestModal() {
   pendingCharacterRequestGmId = null;
 }
 
+/* ---------- Conditions set by the GM ---------- */
+
+// The GM can set a player's Conditions from GMScreen's Roster; they replace
+// the sheet's list (keeping at least the usual four lines), with the same
+// effects as picking them here - stats, avatar, and the push back to the GM.
+// Unsaved until the player saves, like any other change.
+function applyGmConditions({ id, conditions }) {
+  const list = (conditions || []).filter((c) => typeof c === 'string' && c.trim()).map(canonicalCondition);
+  const current = character.conditions.filter(Boolean);
+  if (list.length === current.length && list.every((c, i) => c === current[i])) return;
+  const lines = defaultCharacter().conditions.length;
+  character.conditions = [...list, ...Array(Math.max(0, lines - list.length)).fill('')];
+  renderConditions();
+  renderConditionStats();
+  avatarConditionsChanged();
+  setDirty(true);
+  const gm = gmSessions.get(id);
+  const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const note = document.getElementById('conditions-gm-note');
+  note.textContent = `Set by the GM${gm && gm.name ? ` (${gm.name})` : ''} at ${time}.`;
+  note.classList.remove('hidden');
+}
+
 function initCharacterRequestModal() {
   if (!window.codApi) return;
+
+  if (window.codApi.onGmScreenConditions) window.codApi.onGmScreenConditions(applyGmConditions);
 
   const overlay = document.getElementById('character-request-modal');
   const noCharOverlay = document.getElementById('no-character-modal');

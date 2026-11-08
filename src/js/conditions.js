@@ -2,6 +2,9 @@
 // dropdowns: what each one does, which body parts it visibly injures on the
 // avatar, and what it does to the sheet's derived stats.
 //
+// SHARED FILE: an identical copy lives in gmscreen/src/js/ (the Roster's
+// Conditions editor), so edit both together.
+//
 // Names follow the Conditions list in the Combat Rules
 // (default-combat-rules.js), itself based on the CofD 2e Tilts. The effect
 // text carries the Tilts' numbers (CofD 2e pp. 280-286), paraphrased. Arm and

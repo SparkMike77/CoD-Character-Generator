@@ -238,6 +238,7 @@ ipcMain.handle('session:rotate-pin', () => {
 
 ipcMain.handle('players:get', () => gmServer.getPlayers());
 ipcMain.handle('players:request', (_event, playerId) => gmServer.requestCharacter(playerId));
+ipcMain.handle('players:set-conditions', (_event, { playerId, conditions }) => gmServer.setConditions(playerId, conditions));
 
 ipcMain.handle('campaign:get', () => ({ filePath: currentCampaign.filePath, content: currentCampaign.body }));
 

@@ -122,6 +122,9 @@ app.whenReady().then(() => {
   gmScreenClient.on('down', (info) => {
     if (mainWindow) mainWindow.webContents.send('gmscreen:down', info);
   });
+  gmScreenClient.on('conditions', (info) => {
+    if (mainWindow) mainWindow.webContents.send('gmscreen:conditions', info);
+  });
   gmScreenClient.on('character-request', (info) => {
     if (mainWindow) mainWindow.webContents.send('gmscreen:character-request', info);
   });

@@ -64,6 +64,7 @@ function install() {
     onGmScreenUp: listen('up'),
     onGmScreenDown: listen('down'),
     onGmScreenCharacterRequest: listen('character-request'),
+    onGmScreenConditions: listen('conditions'),
     listKnownGmScreens: () => gm.listKnown(),
     listLiveGmScreens: async () => gm.listLive(),
     lookupGmScreen: (address) => gm.lookup(address),

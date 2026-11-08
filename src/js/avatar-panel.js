@@ -113,7 +113,12 @@ function showAvatar(descriptor) {
 }
 
 function syncToGm() {
-  window.codApi.setCurrentAvatar({ name: (getCharacter().meta.name || '').trim(), ...displayed() });
+  window.codApi.setCurrentAvatar({
+    name: (getCharacter().meta.name || '').trim(),
+    ...displayed(),
+    // So the GM sees (and can change - see renderer.js applyGmConditions) them.
+    conditions: getCharacter().conditions.filter(Boolean)
+  });
 }
 
 // A part/state picker changed: persist it, redraw, tell the GM.
