@@ -10,3 +10,7 @@ download rather than editing these files.
 The Condition poses (js/avatar-poses.js) are single frames of "Universal
 Animation Library" by Quaternius, also CC0 1.0, extracted by
 scripts/extract-poses.js.
+
+body_mannequin.glb (the "Other" body) is the Mannequin from the same
+Universal Animation Library, rig and mesh only, by
+scripts/extract-mannequin.js.

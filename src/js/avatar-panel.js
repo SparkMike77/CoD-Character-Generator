@@ -85,6 +85,9 @@ function renderControls() {
   const overrides = conditionOverrides();
   el('avatar-gender').value = a.gender;
   el('avatar-style').value = a.style;
+  // The mannequin (Other) has no hair; the saved style comes back on a change.
+  el('avatar-style').disabled = a.gender === 'other';
+  el('avatar-style').title = a.gender === 'other' ? 'The mannequin has no hair' : '';
   partSelects().forEach((select) => {
     const injuredBy = overrides.get(select.dataset.avatarPart);
     select.value = injuredBy ? 'damaged' : a.parts[select.dataset.avatarPart];
@@ -163,6 +166,7 @@ export function initAvatarPanel(options) {
 
   el('avatar-gender').addEventListener('change', (e) => {
     avatar().gender = e.target.value;
+    renderControls(); // Style is disabled for the mannequin
     commit();
   });
   el('avatar-style').addEventListener('change', (e) => {

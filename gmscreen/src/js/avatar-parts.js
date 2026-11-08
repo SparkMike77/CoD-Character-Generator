@@ -7,15 +7,19 @@
 // Geometry comes from Quaternius's CC0 "Universal Base Characters" (see
 // src/assets/avatar/LICENSE.txt and scripts/prepare-avatar-assets.js): one
 // rigged male and one rigged female body plus separate hairstyles. Those
-// are "Superhero"-proportioned, so every body type is reshaped here:
+// are "Superhero"-proportioned, so every body type is reshaped here.
+// "Other" is instead the mannequin from the Universal Animation Library
+// (scripts/extract-mannequin.js), shown as it comes, without hair.
+//
 //
 //   - Body shape is changed per VERTEX, not by scaling bones. Each vertex is
 //     pulled toward / pushed away from the bone segments it's skinned to,
 //     blended by its skin weights. (Bone scale would cascade down the
 //     hierarchy - slimming the waist would also squash the head.) Male and
-//     Female get a mild toning-down; Non-Binary is the male body slimmed
-//     further with narrower shoulders. Morphed limbs use the same mechanism
-//     in reverse, to bulk up.
+//     Female get a mild toning-down; Non-Binary is the female body with the
+//     chest flattened and the hips straightened (with normals recomputed for
+//     the new shape). Morphed limbs use the same mechanism in reverse, to
+//     bulk up.
 //   - The six parts are the body mesh split by which bone dominates each
 //     triangle, each part with its own material - that's what lets one
 //     limb be tinted Damaged/Morphed independently of the others.
@@ -136,27 +140,27 @@ const BODY_SHAPE = {
   male: { spine_01: 0.94, spine_02: 0.93, spine_03: 0.93, neck_01: 0.95, upperarm: 0.86, lowerarm: 0.9, thigh: 0.92, calf: 0.94 },
   // pelvis/thigh: the Superhero female's hips are extreme; ~15% narrower.
   female: { pelvis: 0.85, spine_01: 0.97, spine_02: 0.97, spine_03: 0.97, upperarm: 0.9, lowerarm: 0.93, thigh: 0.88, calf: 0.95 },
-  // Androgynous: the male body keeps its depth (chest, back, profile) but
-  // is narrowed side to side to the female torso's widths - measured
-  // relative to height, since the viewer shows every figure the same
-  // height - with straight, male-like hips rather than the female flare.
+  // Androgynous: the FEMALE body (its softer face, no sculpted abs or
+  // pecs) with the chest flattened, the waist filled out, and straight
+  // hips - no hourglass, bust or flare.
   nonbinary: {
-    pelvis: { w: 0.86, d: 0.95 },
-    spine_01: { w: 0.8, d: 0.94 },
-    spine_02: { w: 0.84, d: 0.93 },
-    spine_03: { w: 0.71, d: 0.93 },
-    neck_01: { w: 0.82, d: 0.92 },
-    upperarm: 0.8, lowerarm: 0.85, thigh: 0.86, calf: 0.88
+    pelvis: { w: 0.76, d: 0.97, back: { from: 0.55, k: 0.35 } },
+    spine_01: { w: 1.12, d: 1.02 },
+    spine_02: { w: 1, d: 0.98, front: { from: 0.6, k: 0.25 } },
+    spine_03: { w: 1, d: 0.97, front: { from: 0.6, k: 0.2 } },
+    upperarm: 0.94, lowerarm: 0.95, thigh: { w: 0.76, d: 0.92, back: { from: 0.6, k: 0.5 } }, calf: 0.95
   }
 };
 // Shoulder span (distance between the shoulder joints) as a fraction of
-// the body's own: Non-Binary's matches the female span relative to height.
+// the body's own: Non-Binary's a little broader than the female body's.
 // Done by moving the arms in along the collarbone (a bone translation,
 // which doesn't cascade like scale).
-const SHOULDER_SPAN = { male: 1, female: 1, nonbinary: 0.74 };
-// "Other" is, for now, built exactly like Non-Binary.
-BODY_SHAPE.other = BODY_SHAPE.nonbinary;
-SHOULDER_SPAN.other = SHOULDER_SPAN.nonbinary;
+const SHOULDER_SPAN = { male: 1, female: 1, nonbinary: 1.06 };
+// "Other" is the Universal Animation Library's mannequin (see
+// scripts/extract-mannequin.js), as it comes.
+BODY_SHAPE.other = {};
+SHOULDER_SPAN.other = 1;
+const BODY_FILES = { male: 'body_male.glb', female: 'body_female.glb', nonbinary: 'body_female.glb', other: 'body_mannequin.glb' };
 // Morphed limbs are liquid metal reshaped into weapons (think T-1000):
 // sleek rather than bulky, the hand replaced by a flat blade, a fin blade
 // down the shin. Faceted (flat-shaded) chrome for a hard, blocky read.
@@ -355,7 +359,7 @@ function shapeFactors(a) {
     const part = partOfBone(boneName);
     const bulk = a.parts[part] === 'morphed' ? MORPH_BULK[key] ?? 1 : 1; // (only limb bones have entries)
     if (typeof f === 'number') return f * bulk;
-    return { w: f.w * bulk, d: f.d * bulk };
+    return { ...f, w: f.w * bulk, d: f.d * bulk };
   };
 }
 
@@ -370,6 +374,29 @@ function meanFactor(f) {
 // offset into its side-to-side component (world X, made perpendicular to
 // the bone) and the rest, scaled separately. Bones lying along X (the
 // collarbones) have no side-to-side cross-section, so they use the mean.
+// Smooth vertex normals for the geometry's current positions, averaged
+// across vertices sharing a position (UV seams), so no seams show.
+function weldedNormals(geo) {
+  const temp = new THREE.BufferGeometry();
+  temp.setAttribute('position', geo.attributes.position);
+  temp.setIndex(geo.index);
+  temp.computeVertexNormals();
+  const n = temp.attributes.normal;
+  const pos = geo.attributes.position;
+  const sums = new Map();
+  const keyOf = (i) => `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
+  for (let i = 0; i < pos.count; i++) {
+    const key = keyOf(i);
+    const sum = sums.get(key) || [0, 0, 0];
+    sum[0] += n.getX(i); sum[1] += n.getY(i); sum[2] += n.getZ(i);
+    sums.set(key, sum);
+  }
+  const out = new Float32Array(pos.count * 3);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) v.fromArray(sums.get(keyOf(i))).normalize().toArray(out, i * 3);
+  return new THREE.BufferAttribute(out, 3);
+}
+
 function reshapePositions(t, geo, factorFor) {
   const count = geo.attributes.position.count;
   const out = new Float32Array(count * 3);
@@ -378,7 +405,8 @@ function reshapePositions(t, geo, factorFor) {
     if (typeof f === 'number') return f;
     const axis = t.boneAxis[j];
     const side = new THREE.Vector3(1, 0, 0).addScaledVector(axis, -axis.x);
-    return side.length() > 0.5 ? { ...f, side: side.normalize() } : meanFactor(f);
+    const fwd = new THREE.Vector3(0, 0, 1).addScaledVector(axis, -axis.z).normalize();
+    return side.length() > 0.5 ? { ...f, side: side.normalize(), fwd } : meanFactor(f);
   });
   const radial = new THREE.Vector3();
   const skinIndex = geo.attributes.skinIndex;
@@ -408,6 +436,15 @@ function reshapePositions(t, geo, factorFor) {
       } else {
         const sideways = radial.dot(f.side);
         radial.multiplyScalar(f.d).addScaledVector(f.side, sideways * (f.w - f.d));
+        // front / back: { from, k } - whatever sticks out further forward
+        // (or back) than `from` x the bone's average radius is scaled by k.
+        const ahead = radial.dot(f.fwd);
+        const cut = ahead > 0 ? f.front : f.back;
+        if (cut) {
+          const limit = t.boneRadius[j] * cut.from;
+          const reach = Math.abs(ahead);
+          if (reach > limit) radial.addScaledVector(f.fwd, Math.sign(ahead) * (limit + (reach - limit) * cut.k - reach));
+        }
       }
       acc.addScaledVector(c.add(radial), w);
       total += w;
@@ -547,10 +584,11 @@ function attachAlong(bone, geometry, mat, a, b, t, { offset, lookAxis = new THRE
 // not be disposed.
 export async function buildAvatar(descriptor) {
   const a = normalizeAvatar(descriptor);
-  const female = a.gender === 'female';
-  const hairFile = a.style === 'bald' ? null : HAIR_FILES[a.style][female ? 'female' : 'male'];
+  const female = BODY_FILES[a.gender] === 'body_female.glb'; // (the head the hair has to fit)
+  // The mannequin has no hair: the hairstyles are shaped for the human heads.
+  const hairFile = a.style === 'bald' || a.gender === 'other' ? null : HAIR_FILES[a.style][female ? 'female' : 'male'];
   const [t, hairAnchorT, hairT] = await Promise.all([
-    loadAsset(female ? 'body_female.glb' : 'body_male.glb'),
+    loadAsset(BODY_FILES[a.gender]),
     loadAsset(HAIR_AUTHORED_ON[hairFile] || 'body_female.glb'), // the head the hairstyle was made for
     hairFile ? loadAsset(hairFile) : null
   ]);
@@ -577,6 +615,11 @@ export async function buildAvatar(descriptor) {
   }
   geo.setIndex(t.sortedIndex);
   t.groups.forEach((g) => geo.addGroup(g.start, g.count, g.materialIndex));
+  // Reshaping keeps the template's normals, which is right for mild
+  // changes; a body reshaped hard enough to change its silhouette (front /
+  // back cuts) gets normals for its new shape, or it's still lit - and its
+  // clothes, pushed out along them, shaped - as the old one.
+  if (Object.values(BODY_SHAPE[a.gender]).some((f) => f && (f.front || f.back))) geo.setAttribute('normal', weldedNormals(geo));
   geo.computeBoundingSphere();
   geo.userData.ownGeometry = true;
   body.geometry = geo;
