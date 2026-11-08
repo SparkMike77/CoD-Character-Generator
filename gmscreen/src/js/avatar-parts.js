@@ -147,8 +147,8 @@ const BODY_SHAPE = {
   nonbinary: {
     pelvis: { w: 0.76, d: 0.97, back: { from: 0.55, k: 0.35 } },
     spine_01: { w: 1.12, d: 1.02 },
-    spine_02: { w: 1, d: 0.98, front: { from: 0.5, k: 0.15 } },
-    spine_03: { w: 1, d: 0.97, front: { from: 0.5, k: 0.12 } },
+    spine_02: { w: 1, d: 0.98, front: { from: 0.4, k: 0.06 } },
+    spine_03: { w: 1, d: 0.97, front: { from: 0.4, k: 0.05 } },
     upperarm: 0.94, lowerarm: 0.95, thigh: { w: 0.76, d: 0.92, back: { from: 0.6, k: 0.5 } }, calf: 0.95
   }
 };
@@ -159,7 +159,14 @@ const BODY_SHAPE = {
 // edges) and the crease left under the flattened bust; the shirt, made from
 // this surface, comes out smooth too.
 const BODY_SMOOTH = {
-  nonbinary: { iterations: 14, bones: { pelvis: 0.6, spine_01: 1, spine_02: 1, spine_03: 1, clavicle_l: 0.7, clavicle_r: 0.7 } }
+  nonbinary: {
+    iterations: 20,
+    bones: { pelvis: 0.6, spine_01: 1, spine_02: 1, spine_03: 1, clavicle_l: 0.7, clavicle_r: 0.7 },
+    // Plus a plain (flattening) smooth over the front of the chest only,
+    // which irons out what's left of the bust and the fold beneath it -
+    // the smooth above keeps broad shapes by design.
+    chest: { iterations: 40, bones: { spine_01: 0.5, spine_02: 1, spine_03: 1 } }
+  }
 };
 // Shoulder span (distance between the shoulder joints) as a fraction of
 // the body's own: Non-Binary's a little broader than the female body's.
@@ -295,6 +302,7 @@ function analyseTemplate(gltf) {
   t.bodyName = body.name;
   t.boneNames = bones.map((b) => b.name);
   t.vertexPart = new Uint8Array(count);
+  t.vertexBone = new Uint16Array(count); // dominant bone
   t.vertexGarment = new Array(count);
   for (let i = 0; i < count; i++) {
     let best = 0;
@@ -303,6 +311,7 @@ function analyseTemplate(gltf) {
       const w = skinWeight.getComponent(i, k);
       if (w > bestW) { bestW = w; best = skinIndex.getComponent(i, k); }
     }
+    t.vertexBone[i] = best;
     t.vertexPart[i] = PARTS.indexOf(partOfBone(bones[best].name));
     t.vertexGarment[i] = garmentOfBone(bones[best].name);
   }
@@ -416,23 +425,43 @@ function surfaceNeighbours(t, geo) {
   return t.neighbours;
 }
 
-// Taubin smoothing (alternate shrink / inflate steps, so the overall size
-// holds) on mesh-local `positions`, in place - see BODY_SMOOTH.
-function smoothSurface(t, geo, positions, { iterations, bones }) {
+// Smoothing on mesh-local `positions`, in place - see BODY_SMOOTH. Taubin
+// (alternate shrink / inflate steps, so the overall size holds) over the
+// given bones, then, for `chest`, a plain flattening smooth over the front
+// of the chest.
+function smoothSurface(t, geo, positions, { iterations, bones, chest }) {
   const { rep, lists } = surfaceNeighbours(t, geo);
   const skinIndex = geo.attributes.skinIndex;
   const skinWeight = geo.attributes.skinWeight;
-  const boneAmount = t.boneNames.map((name) => bones[name] || 0);
-  const amount = new Float32Array(rep.length);
+  const amounts = (weights, frontOnly) => {
+    const boneAmount = t.boneNames.map((name) => weights[name] || 0);
+    const amount = new Float32Array(rep.length);
+    for (let i = 0; i < rep.length; i++) {
+      let sum = 0;
+      for (let k = 0; k < 4; k++) sum += skinWeight.getComponent(i, k) * boneAmount[skinIndex.getComponent(i, k)];
+      amount[i] = Math.min(1, sum);
+      if (frontOnly) {
+        // How far in front of its main bone the vertex is, in that bone's radii.
+        const j = t.vertexBone[i];
+        const ahead = (t.bindPos[i * 3 + 2] - t.boneOrigin[j].z) / Math.max(t.boneRadius[j], 1e-4);
+        amount[i] *= THREE.MathUtils.smoothstep(ahead, 0.1, 0.7);
+      }
+    }
+    return amount;
+  };
+  smoothPasses(positions, lists, amounts(bones, false), iterations, true);
+  if (chest) smoothPasses(positions, lists, amounts(chest.bones, true), chest.iterations, false);
+  // Seam duplicates follow their representative.
   for (let i = 0; i < rep.length; i++) {
-    let sum = 0;
-    for (let k = 0; k < 4; k++) sum += skinWeight.getComponent(i, k) * boneAmount[skinIndex.getComponent(i, k)];
-    amount[i] = Math.min(1, sum);
+    if (rep[i] !== i) for (let c = 0; c < 3; c++) positions[i * 3 + c] = positions[rep[i] * 3 + c];
   }
+}
+
+function smoothPasses(positions, lists, amount, iterations, taubin) {
   const verts = [...lists.keys()].filter((v) => amount[v] > 0.01);
   const next = new Float32Array(positions.length);
-  for (let it = 0; it < iterations * 2; it++) {
-    const factor = it % 2 === 0 ? 0.5 : -0.53;
+  for (let it = 0; it < iterations * (taubin ? 2 : 1); it++) {
+    const factor = !taubin ? 0.5 : it % 2 === 0 ? 0.5 : -0.53;
     next.set(positions);
     for (const v of verts) {
       const ns = lists.get(v);
@@ -444,10 +473,6 @@ function smoothSurface(t, geo, positions, { iterations, bones }) {
       }
     }
     positions.set(next);
-  }
-  // Seam duplicates follow their representative.
-  for (let i = 0; i < rep.length; i++) {
-    if (rep[i] !== i) for (let c = 0; c < 3; c++) positions[i * 3 + c] = positions[rep[i] * 3 + c];
   }
 }
 
@@ -518,7 +543,13 @@ function reshapePositions(t, geo, factorFor) {
         if (cut) {
           const limit = t.boneRadius[j] * cut.from;
           const reach = Math.abs(ahead);
-          if (reach > limit) radial.addScaledVector(f.fwd, Math.sign(ahead) * (limit + (reach - limit) * cut.k - reach));
+          if (reach > limit) {
+            // Eased in (slope 1 at the limit, k far beyond) so it leaves no crease.
+            const over = reach - limit;
+            const ease = limit * 0.25;
+            const squeezed = limit + over * cut.k + (1 - cut.k) * ease * (1 - Math.exp(-over / ease));
+            radial.addScaledVector(f.fwd, Math.sign(ahead) * (squeezed - reach));
+          }
         }
       }
       acc.addScaledVector(c.add(radial), w);
