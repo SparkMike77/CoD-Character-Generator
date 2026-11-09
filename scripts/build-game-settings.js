@@ -54,6 +54,7 @@ const SETTINGS = [
       ['The Grey Death', 'Apocalypse/Story bible.md'],
       ['The Changed in the 2050s', 'Apocalypse/The Changed in the 2050s.md'],
       ['The World in the 2050s', 'Apocalypse/World/The World in the 2050s.md'],
+      ['Climate', 'Apocalypse/World/Climate in the 2050s.md'],
       ['North America', 'Apocalypse/World/North America (2050s).md'],
       ['Europe', 'Apocalypse/World/Europe (2050s).md'],
       ['Africa', 'Apocalypse/World/Africa (2050s).md'],
