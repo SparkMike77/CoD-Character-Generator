@@ -36,6 +36,16 @@ function extractChronicleName(body) {
   return match ? match[1].trim() : 'Untitled Chronicle';
 }
 
+// A "Setting: <name>" line anywhere in the campaign picks which bundled
+// Game Setting (default-game-setting.js) players see - matched on the
+// setting's id or label, case-insensitively. null when there's no such line.
+const SETTING_RE = /^Setting:\s*(.+?)\s*$/im;
+
+function extractSetting(body) {
+  const match = SETTING_RE.exec(body || '');
+  return match ? match[1].toLowerCase() : null;
+}
+
 const TRACKED_RESOURCE_RE = /^Tracked Resource:\s*(.+)$/i;
 const TRAIT_LABEL_RE = /^Trait Label:\s*(.+)$/i;
 
@@ -73,4 +83,4 @@ function extractSpeciesList(body) {
   return species;
 }
 
-module.exports = { parseCampaignFile, serializeCampaignFile, extractChronicleName, extractSpeciesList };
+module.exports = { parseCampaignFile, serializeCampaignFile, extractChronicleName, extractSpeciesList, extractSetting };

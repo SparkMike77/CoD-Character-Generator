@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs/promises');
 const { GmServer } = require('./gm-server');
 const { CAMPAIGN_TEMPLATE } = require('./campaign-template');
-const { parseCampaignFile, serializeCampaignFile, extractChronicleName } = require('./campaign-file');
+const { parseCampaignFile, serializeCampaignFile, extractChronicleName, extractSetting } = require('./campaign-file');
 const { SessionStore } = require('./session-store');
 
 let mainWindow;
@@ -21,6 +21,11 @@ function sendMenuAction(action) {
 }
 
 function publishCampaign() {
+  // The References window's Game Setting tab follows the campaign's
+  // "Setting:" line.
+  if (referencesWindow && !referencesWindow.isDestroyed()) {
+    referencesWindow.webContents.send('campaign:setting-changed', extractSetting(currentCampaign.body));
+  }
   if (!gmServer) return;
   if (!currentCampaign.filePath) {
     gmServer.setCampaign(null);
@@ -240,6 +245,7 @@ ipcMain.handle('players:get', () => gmServer.getPlayers());
 ipcMain.handle('players:request', (_event, playerId) => gmServer.requestCharacter(playerId));
 ipcMain.handle('players:set-conditions', (_event, { playerId, conditions }) => gmServer.setConditions(playerId, conditions));
 
+ipcMain.handle('campaign:setting', () => extractSetting(currentCampaign.body));
 ipcMain.handle('campaign:get', () => ({ filePath: currentCampaign.filePath, content: currentCampaign.body }));
 
 ipcMain.handle('campaign:new', async () => {

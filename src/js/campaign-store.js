@@ -1,7 +1,7 @@
 const fs = require('fs/promises');
 const crypto = require('crypto');
 const { CAMPAIGN_TEMPLATE } = require('./campaign-template');
-const { extractChronicleName, extractSpeciesList } = require('./campaign-file');
+const { extractChronicleName, extractSpeciesList, extractSetting } = require('./campaign-file');
 
 // Every campaign a player's Character Manager has ever received (from any
 // GMScreen) or created locally ("Custom"), so characters can be built and
@@ -36,7 +36,7 @@ class CampaignStore {
     const index = await this._load();
     const entry = index[campaignId];
     if (!entry) return null;
-    return { ...entry, speciesList: extractSpeciesList(entry.body) };
+    return { ...entry, speciesList: extractSpeciesList(entry.body), setting: extractSetting(entry.body) };
   }
 
   // Only replaces a locally-stored campaign if this is a newer version (or
@@ -74,7 +74,7 @@ class CampaignStore {
     };
     index[campaignId] = entry;
     await this._save(index);
-    return { ...entry, speciesList: extractSpeciesList(entry.body) };
+    return { ...entry, speciesList: extractSpeciesList(entry.body), setting: extractSetting(entry.body) };
   }
 }
 

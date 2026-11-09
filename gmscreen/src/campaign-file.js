@@ -53,4 +53,15 @@ function extractSpeciesList(body) {
   return names;
 }
 
-module.exports = { parseCampaignFile, serializeCampaignFile, extractChronicleName, extractSpeciesList };
+// A "Setting: <name>" line anywhere in the campaign picks which bundled
+// Game Setting (default-game-setting.js) is shown - matched on the
+// setting's id or label, case-insensitively. null when there's no such line.
+// (Same as the Character Manager's campaign-file.js extractSetting.)
+const SETTING_RE = /^Setting:\s*(.+?)\s*$/im;
+
+function extractSetting(body) {
+  const match = SETTING_RE.exec(body || '');
+  return match ? match[1].toLowerCase() : null;
+}
+
+module.exports = { parseCampaignFile, serializeCampaignFile, extractChronicleName, extractSpeciesList, extractSetting };

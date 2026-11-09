@@ -13,7 +13,7 @@ import {
 import { createDotRow, createCheckRow, createHealthTrack, createIntegrityLadder } from './widgets.js';
 import { renderMarkdown } from './markdown.js';
 import { DEFAULT_SYSTEM_RULES, DEFAULT_SYSTEM_RULES_FILENAME } from './default-system-rules.js';
-import { DEFAULT_GAME_SETTING, DEFAULT_GAME_SETTING_FILENAME } from './default-game-setting.js';
+import { GAME_SETTINGS, DEFAULT_GAME_SETTING_ID } from './default-game-setting.js';
 import { DEFAULT_COMBAT_RULES, DEFAULT_COMBAT_RULES_FILENAME } from './default-combat-rules.js';
 import { initAvatarPanel, avatarCharacterLoaded, avatarConditionsChanged } from './avatar-panel.js';
 import { CONDITIONS, findCondition, canonicalCondition, applyConditionStats } from './conditions.js';
@@ -847,6 +847,7 @@ async function refreshCampaignUI() {
   if (record) {
     character.meta.chronicle = record.chronicle;
     renderSpeciesOptions(record.speciesList);
+    applyCampaignSetting(record.setting);
   } else {
     renderSpeciesOptions(null);
   }
@@ -869,6 +870,7 @@ async function handleChronicleChange(e) {
     setDirty(true);
     renderChronicleOptions();
     renderSpeciesOptions(created.speciesList);
+    applyCampaignSetting(created.setting);
     return;
   }
 
@@ -886,6 +888,7 @@ async function handleChronicleChange(e) {
   if (record) {
     character.meta.chronicle = record.chronicle;
     renderSpeciesOptions(record.speciesList);
+    applyCampaignSetting(record.setting);
   } else {
     renderSpeciesOptions(null);
   }
@@ -1130,9 +1133,41 @@ function initRulesPane(prefix, defaultDoc) {
   });
 }
 
+// The Game Setting tab shows one of the bundled settings (Modern,
+// Apocalypse - see default-game-setting.js), picked by the campaign's
+// "Setting:" line or by hand from the select; "Load Markdown File..." can
+// still show any other file in its place.
+function showGameSetting(id) {
+  const setting = GAME_SETTINGS.find((s) => s.id === id) || GAME_SETTINGS.find((s) => s.id === DEFAULT_GAME_SETTING_ID);
+  document.getElementById('game-setting-choice').value = setting.id;
+  document.getElementById('game-setting-filename').textContent = `${setting.filename} (built-in)`;
+  document.getElementById('game-setting-content').innerHTML = renderMarkdown(setting.content);
+}
+
+// setting: a campaign's extractSetting() value (an id or label, lower-case),
+// or null when the campaign doesn't say - then the tab is left as it is.
+function applyCampaignSetting(setting) {
+  if (!setting) return;
+  const match = GAME_SETTINGS.find((s) => s.id === setting || s.label.toLowerCase() === setting);
+  if (match) showGameSetting(match.id);
+}
+
+function initGameSettingPane() {
+  const select = document.getElementById('game-setting-choice');
+  GAME_SETTINGS.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label;
+    select.appendChild(opt);
+  });
+  select.addEventListener('change', () => showGameSetting(select.value));
+  showGameSetting(DEFAULT_GAME_SETTING_ID);
+  initRulesPane('game-setting');
+}
+
 function initRulesPanes() {
   initRulesPane('system-rules', { filename: DEFAULT_SYSTEM_RULES_FILENAME, content: DEFAULT_SYSTEM_RULES });
-  initRulesPane('game-setting', { filename: DEFAULT_GAME_SETTING_FILENAME, content: DEFAULT_GAME_SETTING });
+  initGameSettingPane();
   initRulesPane('campaign-rules');
   initRulesPane('combat-rules', { filename: DEFAULT_COMBAT_RULES_FILENAME, content: DEFAULT_COMBAT_RULES });
 }

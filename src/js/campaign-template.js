@@ -6,6 +6,10 @@ const CAMPAIGN_TEMPLATE = `# New Chronicle
 
 *Rename this heading to your Chronicle's name - Character Manager reads it as the Chronicle field.*
 
+Setting: Modern
+
+*The line above picks the Game Setting players see: Modern or Apocalypse.*
+
 Fill in "Feature 1" through "Feature 6" below. They map to Character Manager's Virtue, Cell, Vice, Compact, Concept, and Conspiracy fields, in that order. Leave a heading's body blank to leave that field free-text for the player.
 
 ## Feature 1
