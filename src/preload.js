@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('codApi', {
   pairGmScreen: (id, host, port, pin) => ipcRenderer.invoke('gmscreen:pair', { id, host, port, pin }),
   checkGmScreen: (id, host, port) => ipcRenderer.invoke('gmscreen:check', { id, host, port }),
   forgetGmScreen: (id) => ipcRenderer.invoke('gmscreen:forget', id),
+  openTable: (id) => ipcRenderer.invoke('gmscreen:openTable', id),
   sendCharacterToGm: (id, character) => ipcRenderer.invoke('gmscreen:sendCharacter', { id, character }),
 
   setCurrentAvatar: (avatar) => ipcRenderer.invoke('avatar:setCurrent', avatar),

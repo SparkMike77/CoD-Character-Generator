@@ -104,6 +104,8 @@ main:has(#page-campaign.active) { max-width: 800px; }
 main:has(.page-player.active) { max-width: 800px; }
 main:has(#page-scene.active) { max-width: 960px; }
 main:has(#page-roster.active) { max-width: 1200px; }
+main:has(#page-table.active) { max-width: none; padding: 0; }
+.table-frame { display: block; width: 100%; height: calc(100vh - 110px); border: 0; background: #0d0f13; }
 
 .block {
   background: var(--panel-bg);

@@ -22,6 +22,22 @@ PINs are checked against the specific instance the player selected, not broadcas
 
 Session state (paired devices, current PIN) lives in memory only for now — restarting GMScreen clears all of it, and previously paired players will need the new PIN.
 
+## The table (VTT)
+
+GMScreen also runs the **VTT table**: the turn-based, isometric 3D board from the
+[VTT](https://github.com/SparkMike77/VTT) repo, served on the same port at `http://<this machine>:4177/vtt/`.
+
+- **Joining uses this pairing.** In Character Manager (Windows): GM Sessions -> connected -> **Join table**
+  opens the table in its own window. The player's character there has their sheet's name and avatar,
+  the same figure the Roster shows, and follows their sheet live. Anyone else (phones, Chromebooks,
+  Android players) opens the address in a browser and enters a name, the PIN and a look; they're
+  paired just like a Character Manager and appear on the Roster.
+- **The Table tab** is the Storyteller's top-down view of the table: tokens, turn order, log, and the
+  address to give players. Only this window can watch; it holds a per-run secret.
+- The table's files are in `src/vtt/` (see `BUILD.txt` there). They're built by the VTT repo's
+  `npm run build:gmscreen`; don't edit them here. The 3D avatars use this app's own `src/assets/avatar/`
+  models.
+
 ## Running it
 
 ```

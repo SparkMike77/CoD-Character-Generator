@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('gmApi', {
   openReferences: () => ipcRenderer.invoke('references:open'),
   getSession: () => ipcRenderer.invoke('session:get'),
+  getTableUrl: () => ipcRenderer.invoke('table:url'),
   renameSession: (name) => ipcRenderer.invoke('session:rename', name),
   rotatePin: () => ipcRenderer.invoke('session:rotate-pin'),
   onSessionUpdate: (callback) => {

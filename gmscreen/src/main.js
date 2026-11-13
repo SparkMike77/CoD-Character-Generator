@@ -10,6 +10,10 @@ const { SessionStore } = require('./session-store');
 let mainWindow;
 let referencesWindow;
 let gmServer;
+let vtt;
+// The VTT table's Storyteller view is GMScreen's own (its Table tab): only a
+// page holding this per-run secret may watch it.
+const storytellerSecret = crypto.randomBytes(18).toString('base64url');
 let sessionStore;
 // filePath/campaignId/version/body: campaignId+version travel inside the
 // file itself (see campaign-file.js) so GMScreen can tell a paired client
@@ -47,6 +51,38 @@ function handleNewSession() {
   // Session-running itself isn't designed/built yet - this is just the
   // "a Campaign has to be loaded first" guard for now. Paired clients pick
   // up the current campaign as soon as they (re)connect, via GET /campaign.
+}
+
+// The VTT table runs inside GMScreen, on its own port, under /vtt/ (see
+// src/vtt/BUILD.txt - built from the VTT repo by its scripts/build-gmscreen.mjs).
+// Joining uses this session's pairing: a player's GMScreen token is their seat,
+// and their sheet's name and avatar are their character's.
+function startTable() {
+  const { createVtt } = require('./vtt/vtt-server.cjs');
+  const sameSecret = (s) => {
+    const a = Buffer.from(String(s));
+    const b = Buffer.from(storytellerSecret);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  };
+  vtt = createVtt({
+    staticDir: path.join(__dirname, 'vtt', 'client'),
+    // The same avatar models the Roster builds from.
+    assetDirs: { 'assets/avatar': path.join(__dirname, 'assets', 'avatar') },
+    host: {
+      sessionName: () => gmServer.getState().name,
+      sessionId: () => gmServer.instanceId,
+      inviteUrl: () => `http://${gmServer.getState().lanAddress}:${gmServer.port}/vtt/`,
+      player: (token) => gmServer.tablePlayer(token),
+      isStoryteller: sameSecret,
+      reportLook: (token, name, avatar) => gmServer.reportTableLook(token, name, avatar)
+    }
+  });
+  gmServer.extraHandler = (req, res) => vtt.handleHttp(req, res);
+  gmServer.httpServer.on('upgrade', (req, socket, head) => {
+    if (!vtt.handleUpgrade(req, socket, head)) socket.destroy();
+  });
+  // A sheet's name or avatar changed: the table follows.
+  gmServer.on('players-change', () => vtt.hostChanged());
 }
 
 function buildMenu() {
@@ -175,6 +211,7 @@ if (!gotLock) {
     buildMenu();
 
     gmServer = new GmServer({ port: 4177 }).start();
+    startTable();
     gmServer.on('change', (state) => {
       if (mainWindow) mainWindow.webContents.send('session:update', state);
     });
@@ -198,6 +235,7 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   try {
+    if (vtt) vtt.close();
     if (gmServer) gmServer.stop();
   } catch (err) {
     console.error('Error stopping GM server on quit:', err);
@@ -232,6 +270,7 @@ ipcMain.handle('rules:openMarkdown', async (event) => {
 });
 
 ipcMain.handle('session:get', () => gmServer.getState());
+ipcMain.handle('table:url', () => `http://127.0.0.1:${gmServer.port}/vtt/storyteller.html#st=${storytellerSecret}`);
 ipcMain.handle('session:rename', (_event, name) => {
   gmServer.rename(name);
   return gmServer.getState();

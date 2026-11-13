@@ -1269,6 +1269,16 @@ function gmRenderList() {
         gmUpdateBadge();
       });
       action.appendChild(label);
+      // The GM's VTT table (Windows app only for now: the Android build's
+      // codApi has no openTable, so there it's joined from a browser).
+      if (window.codApi.openTable) {
+        const tableBtn = document.createElement('button');
+        tableBtn.type = 'button';
+        tableBtn.className = 'gmscreen-link-btn';
+        tableBtn.textContent = 'Join table';
+        tableBtn.addEventListener('click', () => window.codApi.openTable(session.id));
+        action.appendChild(tableBtn);
+      }
       action.appendChild(disconnectBtn);
     } else if (gmExpandedId === session.id) {
       const pinInput = document.createElement('input');

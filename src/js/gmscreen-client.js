@@ -210,6 +210,16 @@ class GmScreenClient extends EventEmitter {
     return { ok: status === 200 };
   }
 
+  // The VTT table this GMScreen runs, with this pairing in the link (in the
+  // #fragment, so it's never sent in a request): the table seats this player
+  // and uses their sheet's name and avatar.
+  async tableUrl(id) {
+    const connections = await this._loadConnections();
+    const entry = connections[id];
+    if (!entry) return null;
+    return `http://${entry.host}:${entry.port}/vtt/#pair=${encodeURIComponent(entry.token)}`;
+  }
+
   async _loadConnections() {
     try {
       const raw = await fs.readFile(this.storagePath, 'utf-8');

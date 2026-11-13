@@ -127,6 +127,8 @@ class GmServer extends EventEmitter {
     this.nextSlot = 1;
     this.attempts = new Map(); // remoteAddress -> { count, lockUntil }
     this.campaign = null; // { campaignId, version, chronicle, body } | null
+    // The VTT table (see main.js) answers its own /vtt/ paths on this server.
+    this.extraHandler = null; // (req, res) => true if it handled the request
     this.bonjour = null;
     this.mdnsService = null;
     this.httpServer = null;
@@ -220,6 +222,34 @@ class GmServer extends EventEmitter {
     return true;
   }
 
+  // The VTT table's view of a pairing: who's behind a token, with their
+  // sheet's name and avatar. A look the player picked in the table's own
+  // browser lobby (reportTableLook) isn't a sheet's, so it's not returned:
+  // the table keeps using what the player picks there.
+  tablePlayer(token) {
+    const entry = typeof token === 'string' ? this.tokens.get(token) : null;
+    if (!entry) return null;
+    // No sheet yet (or a look from the table's lobby): the table uses the name
+    // and look the player typed there.
+    if (!entry.avatar || entry.avatarFromTable) return { name: entry.avatarFromTable ? null : entry.name, avatar: null };
+    // A sheet with no name yet is "Player<slot>", like its tab here.
+    const slotName = entry.slot != null ? `Player${entry.slot}` : null;
+    const { gender, style, skin, hair, outfit, parts } = entry.avatar;
+    return { name: entry.avatar.name || entry.name || slotName, avatar: { gender, style, skin, hair, outfit, parts } };
+  }
+
+  // A player who paired from the table's browser lobby (no Character
+  // Manager): show their name and the look they picked there on the Roster.
+  // Never overwrites an avatar a Character Manager pushed.
+  reportTableLook(token, name, avatar) {
+    const entry = this.tokens.get(token);
+    if (!entry || (entry.avatar && !entry.avatarFromTable)) return;
+    entry.name = entry.name || name;
+    entry.avatar = { ...sanitizeAvatar({ ...(avatar || {}), name }), conditions: null };
+    entry.avatarFromTable = true;
+    this.emit('players-change', this.getPlayers());
+  }
+
   _publish() {
     this.mdnsService = this.bonjour.publish({
       name: `GMScreen-${this.instanceId.slice(0, 8)}`,
@@ -259,6 +289,8 @@ class GmServer extends EventEmitter {
 
   async _handleRequest(req, res) {
     try {
+      if (this.extraHandler && this.extraHandler(req, res)) return;
+
       if (req.method === 'GET' && req.url === '/session') {
         return sendJson(res, 200, { id: this.instanceId, name: this.sessionName });
       }
@@ -334,6 +366,7 @@ class GmServer extends EventEmitter {
         if (!entry) return sendJson(res, 401, { error: 'Invalid token' });
         const body = await readJsonBody(req);
         entry.avatar = sanitizeAvatar(body.avatar);
+        entry.avatarFromTable = false;
         // A push sent before the player picked up the GM's change mustn't
         // briefly undo it on the Roster.
         if (entry.pendingConditions && entry.avatar.conditions) entry.avatar.conditions = entry.pendingConditions;

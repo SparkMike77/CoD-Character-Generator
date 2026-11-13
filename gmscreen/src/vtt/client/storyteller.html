@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#14161b" />
+    <title>VTT Storyteller</title>
+    <link rel="icon" href="/vtt/icon.svg" type="image/svg+xml" />
+    <script type="module" crossorigin src="/vtt/assets/storyteller-WUW9Ojvk.js"></script>
+    <link rel="modulepreload" crossorigin href="/vtt/assets/timing-BKsFoUhD.js">
+    <link rel="stylesheet" crossorigin href="/vtt/assets/timing-Dy7JGh_D.css">
+    <link rel="stylesheet" crossorigin href="/vtt/assets/storyteller-Cg3z2d29.css">
+  </head>
+  <body>
+    <form id="st-lobby" class="panel" autocomplete="off" hidden>
+      <h1>Storyteller</h1>
+      <p class="sub">Watch a table from above. You see every character; you don't take a turn.</p>
+      <label>Room code <input id="st-room" maxlength="8" required pattern="[A-Za-z0-9]{3,8}" /></label>
+      <button type="submit">Open table</button>
+      <p id="st-error" class="error" role="alert"></p>
+    </form>
+
+    <div id="st-app" hidden>
+      <div id="st-map">
+        <canvas id="st-canvas"></canvas>
+        <div id="st-tools">
+          <button id="st-fit" type="button" class="icon" title="Fit the whole map (F)" aria-label="Fit map">&#x2922;</button>
+        </div>
+        <div id="toast" role="status"></div>
+      </div>
+      <aside id="st-side">
+        <header>
+          <div class="st-title">
+            <span id="st-room-label"></span>
+            <span id="st-status" class="status"></span>
+          </div>
+          <div class="st-invite">
+            Players join at <a id="st-invite" target="_blank" rel="noopener"></a>
+            <button id="st-copy" type="button" class="small">Copy</button>
+          </div>
+        </header>
+        <section>
+          <h2 id="st-round">Waiting for players</h2>
+          <ol id="st-turns"></ol>
+        </section>
+        <section class="grow">
+          <h2>Log</h2>
+          <ul id="st-log"></ul>
+        </section>
+      </aside>
+    </div>
+  </body>
+</html>

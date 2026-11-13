@@ -7,7 +7,7 @@
      scripts/vendor-three.js puts in src/vendor/ (see that script for why). If you
      edit the import map text, recompute its sha256 (base64) and update it here.
      img-src blob: is for textures embedded in GLB avatar models. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UIiVg22PC4ABTdJ22WSTrliOLGvfsog+qnGKL+MGxbk='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob:;" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UIiVg22PC4ABTdJ22WSTrliOLGvfsog+qnGKL+MGxbk='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob:; frame-src http://127.0.0.1:4177;" />
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <title>GMScreen</title>
 <link rel="stylesheet" href="css/style.css" />
@@ -23,6 +23,7 @@
     <button type="button" class="tab-btn active" data-page="page-session">Session</button>
     <button type="button" class="tab-btn" data-page="page-scene">Scene</button>
     <button type="button" class="tab-btn" data-page="page-roster">Roster</button>
+    <button type="button" class="tab-btn" data-page="page-table">Table</button>
   </nav>
 
   <main>
@@ -107,6 +108,11 @@
         <p id="roster-empty" class="hint roster-empty">No players connected yet. Players appear here as soon as they pair with this session.</p>
         <div id="roster-grid" class="roster-grid"></div>
       </section>
+    </section>
+
+    <!-- The VTT table, top-down (the Storyteller view, served by this app). -->
+    <section id="page-table" class="page">
+      <iframe id="table-frame" title="Table" class="table-frame"></iframe>
     </section>
   </main>
 

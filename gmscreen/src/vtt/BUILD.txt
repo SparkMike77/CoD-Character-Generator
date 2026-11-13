@@ -1,0 +1,2 @@
+Built from VTT 8e2318e on 2026-11-13T23:45:52.619Z by scripts/build-gmscreen.mjs.
+Don't edit these files: change VTT, then re-run that script.

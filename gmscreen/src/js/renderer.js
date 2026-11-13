@@ -35,6 +35,15 @@ function renderState(state) {
 function activateTab(pageId) {
   document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.page === pageId));
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === pageId));
+  if (pageId === 'page-table') loadTable();
+}
+
+// The Table tab loads the VTT Storyteller view (served by this app) the
+// first time it's opened; after that it stays live in the background.
+async function loadTable() {
+  const frame = document.getElementById('table-frame');
+  if (frame.src) return;
+  frame.src = await window.gmApi.getTableUrl();
 }
 
 function initTabs() {

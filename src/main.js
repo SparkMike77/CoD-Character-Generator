@@ -190,6 +190,21 @@ ipcMain.handle('gmscreen:lookup', (_event, address) => gmScreenClient.lookup(add
 ipcMain.handle('gmscreen:pair', (_event, { id, host, port, pin }) => gmScreenClient.pair({ id, host, port, pin }));
 ipcMain.handle('gmscreen:check', (_event, { id, host, port }) => gmScreenClient.check({ id, host, port }));
 ipcMain.handle('gmscreen:forget', (_event, id) => gmScreenClient.forget(id));
+// Opens the GM's VTT table in its own window (a plain web page served by
+// GMScreen: no preload, no Node, sandboxed).
+ipcMain.handle('gmscreen:openTable', async (_event, id) => {
+  const url = await gmScreenClient.tableUrl(id);
+  if (!url) return false;
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    title: 'Table',
+    autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  win.loadURL(url);
+  return true;
+});
 ipcMain.handle('gmscreen:sendCharacter', (_event, { id, character }) => gmScreenClient.sendCharacter(id, character));
 
 ipcMain.handle('avatar:setCurrent', (_event, avatar) => gmScreenClient.setAvatar(avatar));
