@@ -1109,6 +1109,32 @@ function fillResourceInfo() {
   document.getElementById('resource-info-current').textContent = label
     ? `${label} is the resource your character's species tracks.`
     : "Your character's species doesn't track a resource yet - choose a Chronicle and Species first.";
+  const changed = isChanged();
+  document.getElementById('resource-info-swarm').classList.toggle('hidden', !changed);
+  if (changed) document.getElementById('resource-info-swarm-current').textContent = swarmPoolSummary();
+}
+
+// The Changed (Swarm / Aptitudes) have a Swarm pool sized by their
+// Aptitudes: 1 per Aptitude dot, up to Stamina + Manipulation.
+function isChanged() {
+  return /^swarm$/i.test(character.resource?.label || '') || /^aptitudes$/i.test(character.featureLabel || '');
+}
+
+function swarmPoolSummary() {
+  const dots = character.features.reduce((sum, row) => sum + (row.dots || 0), 0);
+  const cap = (character.attributes.stamina || 0) + (character.attributes.manipulation || 0);
+  const max = Math.min(dots, cap);
+  const label = character.featureLabel || DEFAULT_FEATURE_LABEL;
+  return dots === 0
+    ? `This character has no dots in their ${label} yet, so no Swarm pool. Their eventual maximum is Stamina + Manipulation = ${cap}.`
+    : `This character has ${dots} dot${dots === 1 ? '' : 's'} in their ${label} and Stamina + Manipulation of ${cap}, so their Swarm pool holds up to ${max}.`;
+}
+
+function fillFeaturesInfo() {
+  document.getElementById('features-info-title').textContent = character.featureLabel || DEFAULT_FEATURE_LABEL;
+  const changed = isChanged();
+  document.getElementById('features-info-aptitudes').classList.toggle('hidden', !changed);
+  if (changed) document.getElementById('features-info-swarm-current').textContent = swarmPoolSummary();
 }
 
 /* ---------- Rules panes (System Rules / Campaign Rules tabs) ---------- */
@@ -1504,6 +1530,7 @@ initInfoModal('experience');
 initInfoModal('health');
 initInfoModal('integrity');
 initInfoModal('resource', { onOpen: fillResourceInfo });
+initInfoModal('features', { onOpen: fillFeaturesInfo });
 initInfoModal('aspirations');
 initInfoModal('virtue');
 initInfoModal('vice');

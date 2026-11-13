@@ -144,7 +144,10 @@
 
         <div class="col-stack">
           <section class="block">
-            <h2 id="features-label">Features</h2>
+            <div class="block-header-row">
+              <button type="button" id="features-info-btn" class="info-icon" aria-label="About this list" title="About this list">i</button>
+              <h2 id="features-label">Features</h2>
+            </div>
             <div id="features-list" class="rated-list"></div>
             <button type="button" id="add-feature" class="add-row-btn">+ Add</button>
           </section>
@@ -483,8 +486,25 @@
       <button type="button" id="resource-info-close" class="modal-close" aria-label="Close">&times;</button>
       <h3 id="resource-info-title" class="modal-title">Tracked Resource</h3>
       <p id="resource-info-current"></p>
+      <div id="resource-info-swarm" class="hidden">
+        <p><strong>Swarm pool size:</strong> your Swarm pool starts at 1 when your character earns their first Aptitude dot (a Protocol dot, in Apocalypse), and grows by 1 with each dot after that, up to a maximum of <strong>Stamina + Manipulation</strong>.</p>
+        <p id="resource-info-swarm-current"></p>
+      </div>
       <p>Each species in your Chronicle can have its own resource pool &mdash; for example Blood Pool for Vampires, Rage for Werewolves, Swarm for the Changed, or Luck for Humans. It fuels that species&rsquo; abilities: the species&rsquo; rules say what spends points, how they&rsquo;re regained, and any limit on how many you can hold.</p>
       <p>Mark the points your character currently has. The details for your species are in the Game Setting and Campaign Rules tabs.</p>
+    </div>
+  </div>
+
+  <div id="features-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="features-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 id="features-info-title" class="modal-title">Features</h3>
+      <p>This list holds your species&rsquo; supernatural traits &mdash; Disciplines for Vampires, Gifts for Werewolves, Aptitudes for the Changed &mdash; each rated in dots. Your species&rsquo; rules, in the Game Setting and Campaign Rules tabs, say what each one does and what it costs.</p>
+      <div id="features-info-aptitudes" class="hidden">
+        <p>In Modern, the Changed have five Aptitudes: Making, Shaping, Animation, Lightning and Sensing. Each dot unlocks that Aptitude&rsquo;s abilities at that level; the first dot also gives its free Basic Trait. In Apocalypse, a character belongs to one Aptitude and lists its Protocols here instead.</p>
+        <p><strong>Aptitudes and Swarm:</strong> your Swarm pool starts at 1 when your character earns their first dot in this list, and grows by 1 with each dot after that, up to a maximum of <strong>Stamina + Manipulation</strong>.</p>
+        <p id="features-info-swarm-current"></p>
+      </div>
     </div>
   </div>
 
