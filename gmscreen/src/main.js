@@ -245,6 +245,44 @@ ipcMain.handle('players:get', () => gmServer.getPlayers());
 ipcMain.handle('players:request', (_event, playerId) => gmServer.requestCharacter(playerId));
 ipcMain.handle('players:set-conditions', (_event, { playerId, conditions }) => gmServer.setConditions(playerId, conditions));
 
+// Exposure: the Storyteller's private record, per character, of what each
+// one's actions have exposed - so consequences get set up later. It's kept
+// only here (userData/exposure.json, by campaign then character name) and
+// never sent to a player. Character names, not pairing tokens, key it,
+// since tokens reset every run and Exposure lasts the whole chronicle.
+const exposureFile = () => path.join(app.getPath('userData'), 'exposure.json');
+const exposureCampaignKey = () => currentCampaign.campaignId || 'no-campaign';
+
+async function readExposure() {
+  try {
+    return JSON.parse(await fs.readFile(exposureFile(), 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function sanitizeExposure(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.slice(0, 500).map((e) => ({
+    text: String((e && e.text) || '').slice(0, 500),
+    at: typeof (e && e.at) === 'string' ? e.at.slice(0, 40) : new Date().toISOString(),
+    done: !!(e && e.done)
+  })).filter((e) => e.text.trim());
+}
+
+ipcMain.handle('exposure:get', async () => (await readExposure())[exposureCampaignKey()] || {});
+ipcMain.handle('exposure:set', async (_event, { character, entries }) => {
+  const key = String(character || '').trim().toLowerCase().slice(0, 120);
+  if (!key) return null;
+  const all = await readExposure();
+  const campaign = (all[exposureCampaignKey()] = all[exposureCampaignKey()] || {});
+  const clean = sanitizeExposure(entries);
+  if (clean.length) campaign[key] = clean;
+  else delete campaign[key];
+  await fs.writeFile(exposureFile(), JSON.stringify(all, null, 2), 'utf-8');
+  return campaign;
+});
+
 ipcMain.handle('campaign:setting', () => extractSetting(currentCampaign.body));
 ipcMain.handle('campaign:get', () => ({ filePath: currentCampaign.filePath, content: currentCampaign.body }));
 

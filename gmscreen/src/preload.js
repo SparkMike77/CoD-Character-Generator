@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('gmApi', {
   getPlayers: () => ipcRenderer.invoke('players:get'),
   requestCharacter: (playerId) => ipcRenderer.invoke('players:request', playerId),
   setPlayerConditions: (playerId, conditions) => ipcRenderer.invoke('players:set-conditions', { playerId, conditions }),
+  getExposure: () => ipcRenderer.invoke('exposure:get'),
+  setExposure: (character, entries) => ipcRenderer.invoke('exposure:set', { character, entries }),
   onPlayersUpdate: (callback) => {
     ipcRenderer.on('players:update', (_event, players) => callback(players));
   },

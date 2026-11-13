@@ -113,7 +113,9 @@ function renderPlayerPage(page, player) {
 // batch, character send). So cards are created once per player and only
 // patched - the figure is rebuilt only when that player's parts descriptor
 // actually changes, never just because something else updated.
-const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, condEl, shownKey, condKey }
+const rosterCards = new Map(); // player id -> { card, viewer, nameEl, metaEl, msgEl, condEl, expEl, shownKey, condKey, expKey }
+let exposureByCharacter = {}; // lower-cased character name -> [{ text, at, done }], for the open campaign
+let lastRosterPlayers = [];
 
 function rosterDisplayName(player) {
   return (player.avatar && player.avatar.name) || (player.character && player.name) || `Player${player.slot}`;
@@ -142,15 +144,18 @@ function createRosterCard(player) {
 
   const condEl = document.createElement('div');
   condEl.className = 'roster-conditions';
+  const expEl = document.createElement('div');
+  expEl.className = 'roster-exposure';
 
   card.appendChild(viewport);
   card.appendChild(nameEl);
   card.appendChild(metaEl);
   card.appendChild(condEl);
+  card.appendChild(expEl);
   card.appendChild(openBtn);
   document.getElementById('roster-grid').appendChild(card);
 
-  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, condEl, shownKey: null, condKey: null };
+  const entry = { card, viewer: new AvatarViewer(viewport), nameEl, metaEl, msgEl, condEl, expEl, shownKey: null, condKey: null, expKey: null };
   rosterCards.set(player.id, entry);
   return entry;
 }
@@ -240,10 +245,92 @@ function renderRosterConditions(entry, player) {
   wrap.appendChild(add);
 }
 
+// Exposure: the Storyteller's own record of what this character's actions
+// have exposed (who saw what, what was filmed, what was left behind), so
+// consequences get set up later. Not a mechanic, and never sent to the
+// player - it's stored by GMScreen per campaign and character name. Each
+// entry can be ticked off once its consequence is set up.
+function renderRosterExposure(entry, player) {
+  const character = rosterDisplayName(player);
+  const id = character.trim().toLowerCase();
+  const entries = exposureByCharacter[id] || [];
+  const key = JSON.stringify([id, entries]);
+  if (key === entry.expKey) return;
+  entry.expKey = key;
+  const wrap = entry.expEl;
+  clearEl(wrap);
+  const save = async (list) => {
+    const saved = await window.gmApi.setExposure(character, list);
+    if (saved) exposureByCharacter = saved;
+    renderRosterExposure(entry, player);
+  };
+
+  const open = entries.filter((e) => !e.done).length;
+  const head = document.createElement('div');
+  head.className = 'roster-cond-head';
+  head.textContent = open ? `Exposure · ${open} to follow up` : 'Exposure';
+  head.title = "Your private record of what this character has exposed. Tick an entry once you've set up its consequence.";
+  wrap.appendChild(head);
+
+  const list = document.createElement('ul');
+  list.className = 'roster-exp-list';
+  entries.forEach((e, idx) => {
+    const li = document.createElement('li');
+    li.className = e.done ? 'roster-exp-item done' : 'roster-exp-item';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = e.done;
+    box.title = 'Consequence set up';
+    box.addEventListener('change', () => save(entries.map((x, i) => (i === idx ? { ...x, done: box.checked } : x))));
+    const text = document.createElement('span');
+    text.className = 'roster-exp-text';
+    text.textContent = e.text;
+    text.title = `Noted ${new Date(e.at).toLocaleString()}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'roster-cond-remove';
+    remove.setAttribute('aria-label', `Remove "${e.text}"`);
+    remove.textContent = '×';
+    remove.addEventListener('click', () => save(entries.filter((_, i) => i !== idx)));
+    li.append(box, text, remove);
+    list.appendChild(li);
+  });
+  wrap.appendChild(list);
+
+  const form = document.createElement('form');
+  form.className = 'roster-exp-form';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'What did they expose?';
+  input.setAttribute('aria-label', `Note Exposure for ${character}`);
+  const add = document.createElement('button');
+  add.type = 'submit';
+  add.textContent = 'Add';
+  form.append(input, add);
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const text = input.value.trim();
+    if (text) save([...entries, { text, at: new Date().toISOString(), done: false }]);
+  });
+  wrap.appendChild(form);
+}
+
+async function loadExposure() {
+  exposureByCharacter = (await window.gmApi.getExposure()) || {};
+  for (const [id, entry] of rosterCards) {
+    const player = lastRosterPlayers.find((p) => p.id === id);
+    if (player) {
+      entry.expKey = null;
+      renderRosterExposure(entry, player);
+    }
+  }
+}
+
 function updateRosterCard(entry, player) {
   const avatar = player.avatar;
   entry.nameEl.textContent = rosterDisplayName(player);
   renderRosterConditions(entry, player);
+  renderRosterExposure(entry, player);
 
   if (!avatar) {
     entry.metaEl.textContent = `Player${player.slot}`;
@@ -272,6 +359,7 @@ function updateRosterCard(entry, player) {
 
 function renderRoster(players) {
   const list = players || [];
+  lastRosterPlayers = list;
   const ids = new Set(list.map((p) => p.id));
 
   // Players don't currently leave mid-run (slots last the whole session),
@@ -370,6 +458,7 @@ function renderCampaignPreview() {
 }
 
 function applyCampaign(campaign) {
+  loadExposure(); // Exposure is kept per campaign
   currentCampaignPath = campaign.filePath;
   document.getElementById('campaign-editor').value = campaign.content;
   setCampaignDirty(false);
