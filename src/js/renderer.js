@@ -1139,9 +1139,11 @@ function initRulesPane(prefix, defaultDoc) {
 // still show any other file in its place.
 function showGameSetting(id) {
   const setting = GAME_SETTINGS.find((s) => s.id === id) || GAME_SETTINGS.find((s) => s.id === DEFAULT_GAME_SETTING_ID);
+  // The Character Manager bundles only the Player's Guide of each setting.
+  const guide = setting.guides[0];
   document.getElementById('game-setting-choice').value = setting.id;
-  document.getElementById('game-setting-filename').textContent = `${setting.filename} (built-in)`;
-  document.getElementById('game-setting-content').innerHTML = renderMarkdown(setting.content);
+  document.getElementById('game-setting-filename').textContent = `${guide.filename} (built-in)`;
+  document.getElementById('game-setting-content').innerHTML = renderMarkdown(guide.content);
 }
 
 // setting: a campaign's extractSetting() value (an id or label, lower-case),

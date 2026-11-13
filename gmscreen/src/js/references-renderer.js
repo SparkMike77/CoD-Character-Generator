@@ -37,11 +37,17 @@ function initRulesPane(prefix, defaultDoc) {
 // The Game Setting tab shows one of the bundled settings (Modern,
 // Apocalypse), following the open campaign's "Setting:" line, or picked by
 // hand; "Load Markdown File..." can still show any other file in its place.
+// Each setting has a Storyteller's Guide (the default here) and the
+// Player's Guide - the only one the Character Manager has - so the GM can
+// check what players can read.
 function showGameSetting(id) {
   const setting = GAME_SETTINGS.find((s) => s.id === id) || GAME_SETTINGS.find((s) => s.id === DEFAULT_GAME_SETTING_ID);
+  const guideSelect = document.getElementById('game-setting-guide');
+  const guide = setting.guides.find((g) => g.id === guideSelect.value) || setting.guides.find((g) => g.id === 'storyteller');
   document.getElementById('game-setting-choice').value = setting.id;
-  document.getElementById('game-setting-filename').textContent = `${setting.filename} (built-in)`;
-  document.getElementById('game-setting-content').innerHTML = renderMarkdown(setting.content);
+  guideSelect.value = guide.id;
+  document.getElementById('game-setting-filename').textContent = `${guide.filename} (built-in)`;
+  document.getElementById('game-setting-content').innerHTML = renderMarkdown(guide.content);
 }
 
 // setting: the campaign's extractSetting() value, or null (tab left as is).
@@ -60,6 +66,14 @@ function initGameSettingPane() {
     select.appendChild(opt);
   });
   select.addEventListener('change', () => showGameSetting(select.value));
+  const guideSelect = document.getElementById('game-setting-guide');
+  [['storyteller', "Storyteller's Guide"], ['player', "Player's Guide"]].forEach(([value, label]) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    guideSelect.appendChild(opt);
+  });
+  guideSelect.addEventListener('change', () => showGameSetting(select.value));
   showGameSetting(DEFAULT_GAME_SETTING_ID);
   initRulesPane('game-setting');
   if (window.referencesApi) {
