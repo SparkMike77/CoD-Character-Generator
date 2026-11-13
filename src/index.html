@@ -79,11 +79,11 @@
     <section id="page-front" class="page active">
       <div class="meta-grid">
         <label>Name <input type="text" data-meta="name" /></label>
-        <label>Virtue <input type="text" data-meta="virtue" /></label>
+        <label for="meta-virtue"><span class="meta-label-row">Virtue <button type="button" id="virtue-info-btn" class="info-icon-sm" aria-label="What a Virtue is" title="What is a Virtue?">i</button></span><input type="text" id="meta-virtue" data-meta="virtue" list="virtue-options" placeholder="Pick or type your own" /></label>
         <label>Cell <input type="text" data-meta="cell" /></label>
 
         <label>Player <input type="text" data-meta="player" /></label>
-        <label>Vice <input type="text" data-meta="vice" /></label>
+        <label for="meta-vice"><span class="meta-label-row">Vice <button type="button" id="vice-info-btn" class="info-icon-sm" aria-label="What a Vice is" title="What is a Vice?">i</button></span><input type="text" id="meta-vice" data-meta="vice" list="vice-options" placeholder="Pick or type your own" /></label>
         <label>Compact <input type="text" data-meta="compact" /></label>
 
         <label>Chronicle <select id="chronicle-select"></select></label>
@@ -94,6 +94,34 @@
         <!-- Drives the avatar's body shape; owned by avatar-panel.js. -->
         <label>Gender <select id="avatar-gender"></select></label>
       </div>
+      <!-- Virtue and Vice are open-ended in 2nd Edition: these are suggestions,
+           and players can type their own. -->
+      <datalist id="virtue-options">
+        <option value="Competitive" label="2nd Edition example"></option>
+        <option value="Generous" label="2nd Edition example"></option>
+        <option value="Just" label="2nd Edition example"></option>
+        <option value="Loyal" label="2nd Edition example"></option>
+        <option value="Charity" label="Classic Virtue"></option>
+        <option value="Faith" label="Classic Virtue"></option>
+        <option value="Fortitude" label="Classic Virtue"></option>
+        <option value="Hope" label="Classic Virtue"></option>
+        <option value="Justice" label="Classic Virtue"></option>
+        <option value="Prudence" label="Classic Virtue"></option>
+        <option value="Temperance" label="Classic Virtue"></option>
+      </datalist>
+      <datalist id="vice-options">
+        <option value="Ambitious" label="2nd Edition example"></option>
+        <option value="Arrogant" label="2nd Edition example"></option>
+        <option value="Competitive" label="2nd Edition example"></option>
+        <option value="Greedy" label="2nd Edition example"></option>
+        <option value="Envy" label="Classic Vice"></option>
+        <option value="Gluttony" label="Classic Vice"></option>
+        <option value="Greed" label="Classic Vice"></option>
+        <option value="Lust" label="Classic Vice"></option>
+        <option value="Pride" label="Classic Vice"></option>
+        <option value="Sloth" label="Classic Vice"></option>
+        <option value="Wrath" label="Classic Vice"></option>
+      </datalist>
 
       <section class="block">
         <div class="block-header-row">
@@ -457,6 +485,42 @@
       <p id="resource-info-current"></p>
       <p>Each species in your Chronicle can have its own resource pool &mdash; for example Blood Pool for Vampires, Rage for Werewolves, Swarm for the Changed, or Luck for Humans. It fuels that species&rsquo; abilities: the species&rsquo; rules say what spends points, how they&rsquo;re regained, and any limit on how many you can hold.</p>
       <p>Mark the points your character currently has. The details for your species are in the Game Setting and Campaign Rules tabs.</p>
+    </div>
+  </div>
+
+  <div id="virtue-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="virtue-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Virtue</h3>
+      <p>Your character&rsquo;s Virtue is their higher calling: the trait that shows them at their best. Acting on it is hard, and usually costs or risks something.</p>
+      <p>Acting on your Virtue in a way that matters is how your character regains the most Willpower: all of it, once per chapter.</p>
+      <p>Virtues are open-ended. Pick a suggestion from the list or write your own: a word for the trait, plus the kind of moment that triggers it, agreed with the Storyteller. Examples from the rules:</p>
+      <ul>
+        <li><strong>Competitive:</strong> honestly competing with someone who outclasses them, for stakes they&rsquo;d feel if they lost.</li>
+        <li><strong>Generous:</strong> being deprived of something important, or put at risk, because of their generosity.</li>
+        <li><strong>Just:</strong> setting their own goals aside to make sure justice is done.</li>
+        <li><strong>Loyal:</strong> refusing to act against the group&rsquo;s interests when it puts them at risk.</li>
+      </ul>
+      <p>Many tables still use the seven classic Virtues of the original World of Darkness: Charity, Faith, Fortitude, Hope, Justice, Prudence and Temperance.</p>
+      <p>A character can&rsquo;t have the same trait as both Virtue and Vice. Either can change after a life-altering event.</p>
+    </div>
+  </div>
+
+  <div id="vice-info-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" id="vice-info-close" class="modal-close" aria-label="Close">&times;</button>
+      <h3 class="modal-title">Vice</h3>
+      <p>Your character&rsquo;s Vice is their short-term comfort: the easy way out. It&rsquo;s self-destructive in the long run, but it relieves stress.</p>
+      <p>Indulging your Vice regains one Willpower point, once per scene.</p>
+      <p>Vices are open-ended. Pick a suggestion from the list or write your own: a word for the trait, plus the kind of moment that triggers it, agreed with the Storyteller. Examples from the rules:</p>
+      <ul>
+        <li><strong>Ambitious:</strong> jockeying for position or advancing socially instead of doing something more useful.</li>
+        <li><strong>Arrogant:</strong> taking an opportunity to lord their superiority over someone.</li>
+        <li><strong>Competitive:</strong> indulging in a competition that distracts from more pressing matters.</li>
+        <li><strong>Greedy:</strong> taking an advantage for themselves and denying it to someone else.</li>
+      </ul>
+      <p>Many tables still use the seven classic Vices of the original World of Darkness: Envy, Gluttony, Greed, Lust, Pride, Sloth and Wrath.</p>
+      <p>A character can&rsquo;t have the same trait as both Virtue and Vice. Either can change after a life-altering event.</p>
     </div>
   </div>
 

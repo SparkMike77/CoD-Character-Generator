@@ -1503,6 +1503,8 @@ initInfoModal('health');
 initInfoModal('integrity');
 initInfoModal('resource', { onOpen: fillResourceInfo });
 initInfoModal('aspirations');
+initInfoModal('virtue');
+initInfoModal('vice');
 initInfoModal('conditions');
 initAboutModal();
 initSizeControl();

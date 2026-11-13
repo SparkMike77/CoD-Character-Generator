@@ -280,6 +280,7 @@ body.avatar-hidden .avatar-panel { display: none; }
   gap: 2px;
 }
 .meta-grid input, .meta-grid select { width: 100%; }
+.meta-label-row { display: flex; align-items: center; gap: 4px; }
 
 /* Attributes */
 .attributes-grid {
