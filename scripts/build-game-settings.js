@@ -35,6 +35,8 @@ const PLAYER_OUT = 'src/js/default-game-setting.js';
 const GM_OUT = 'gmscreen/src/js/default-game-setting.js';
 
 const MODERN_ST = 'Modern/Storyteller';
+// One ruleset for the Changed, shared by both settings - keep it that way.
+const CHANGED_RULES = 'Game Concepts.md';
 
 // [title, path within the Zero Day folder, options?]
 const SETTINGS = [
@@ -69,7 +71,7 @@ const SETTINGS = [
       ['First Fever, Scene 3: Expedited Discharge', `${MODERN_ST}/First Fever/First Fever 3 - Expedited Discharge.md`],
       ['First Fever, Scene 4: The Crossing', `${MODERN_ST}/First Fever/First Fever 4 - The Crossing.md`],
       ['First Fever, Scene 5: The Toll Booth', `${MODERN_ST}/First Fever/First Fever 5 - The Toll Booth.md`],
-      ['The Changed: Rules', 'Modern/Game Concepts.md']
+      ['The Changed: Rules', CHANGED_RULES]
     ]
   },
   {
@@ -96,7 +98,8 @@ const SETTINGS = [
       ['AI in the 2050s', 'Apocalypse/AI in the 2050s.md'],
       ['Names', 'Apocalypse/Names.md'],
       ["Soren's School Journal", "Apocalypse/Articles/Soren's School Journal.md"],
-      ['Game Principles', 'Apocalypse/Zero Day - Game Principles.md']
+      ['Game Principles', 'Apocalypse/Zero Day - Game Principles.md'],
+      ['The Changed: Rules', CHANGED_RULES]
     ]
   }
 ];
