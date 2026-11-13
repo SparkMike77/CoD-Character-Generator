@@ -10,20 +10,6 @@ Setting: Modern
 
 *The line above picks the Game Setting players see: Modern or Apocalypse.*
 
-Fill in "Feature 1" through "Feature 6" below. They map to Character Manager's Virtue, Cell, Vice, Compact, Concept, and Conspiracy fields, in that order. Leave a heading's body blank to leave that field free-text for the player.
-
-## Feature 1
-
-## Feature 2
-
-## Feature 3
-
-## Feature 4
-
-## Feature 5
-
-## Feature 6
-
 ## Species
 
 List every species playable in this Chronicle as its own heading below. Flavor text and any mechanical changes go in the body.
